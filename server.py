@@ -15,8 +15,8 @@ from mcp.server.fastmcp import FastMCP
 
 from session import VibeSession
 from modes import valid_modes, get_mode
-from formatters import format_mode_switch, format_vibe_check, format_status_line, format_history
-from governor import evaluate_nudge, format_nudge_or_clear
+from formatters import format_mode_switch, format_vibe_check, format_status_line, format_history, format_nudge_output
+from governor import evaluate_nudge
 import config
 
 # ---------------------------------------------------------------------------
@@ -61,7 +61,11 @@ def vibe_check() -> str:
     Call this to understand the human's current working context.
     """
     _session.record_interaction()
-    return format_vibe_check(_session)
+    nudge = evaluate_nudge(_session)
+    if nudge:
+        _session.nudges_surfaced += 1
+        _session.last_nudge_at = datetime.now(timezone.utc)
+    return format_vibe_check(_session, nudge=nudge)
 
 
 @mcp.tool()
@@ -74,7 +78,7 @@ def vibe_nudge() -> str:
     if nudge:
         _session.nudges_surfaced += 1
         _session.last_nudge_at = datetime.now(timezone.utc)
-    return format_nudge_or_clear(nudge)
+    return format_nudge_output(nudge)
 
 
 @mcp.tool()

@@ -1,11 +1,16 @@
 """Session state management for Vibe Harness."""
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 import uuid
 
 from modes import get_friction, get_friction_message, default_mode, validate_mode, get_mode
+
+HISTORY_DIR = Path.home() / ".vibe-harness"
+HISTORY_FILE = HISTORY_DIR / "mode-history.jsonl"
 
 
 @dataclass
@@ -135,6 +140,8 @@ class VibeSession:
         self.mode = new_mode
         self.mode_since = now
 
+        self._log_transition(old_mode, new_mode, friction, now)
+
         mode_def = get_mode(new_mode)
         return {
             "success": True,
@@ -143,6 +150,22 @@ class VibeSession:
             "friction": friction,
             "awaiting_confirmation": False,
         }
+
+    def _log_transition(self, from_mode: str, to_mode: str, friction: str, timestamp: datetime) -> None:
+        """Append transition to JSONL history file. Failures are silently swallowed."""
+        try:
+            HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+            entry = {
+                "timestamp": timestamp.isoformat(),
+                "session_id": self.session_id,
+                "from_mode": from_mode,
+                "to_mode": to_mode,
+                "friction": friction,
+            }
+            with HISTORY_FILE.open("a") as f:
+                f.write(json.dumps(entry) + "\n")
+        except Exception:
+            pass
 
     def mode_duration_minutes(self) -> float:
         """Minutes in current mode."""

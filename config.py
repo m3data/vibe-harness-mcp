@@ -2,11 +2,12 @@
 
 Resolution order: defaults < ~/.vibe-harness/config.json < .vibe-harness.json < runtime overrides.
 
-Step 4 will implement full config loading. For now, returns defaults with
-runtime override support.
+File configs are loaded once at import time. Runtime overrides via vibe_configure() take priority.
 """
 
-from typing import Any, Optional
+import json
+from pathlib import Path
+from typing import Any
 
 DEFAULTS = {
     "nudges.time_check_minutes": 45,
@@ -17,13 +18,46 @@ DEFAULTS = {
     "export.auto_export": False,
 }
 
+USER_CONFIG = Path.home() / ".vibe-harness" / "config.json"
+PROJECT_CONFIG = Path(".vibe-harness.json")
+
+_user_config: dict[str, Any] = {}
+_project_config: dict[str, Any] = {}
 _runtime_overrides: dict[str, Any] = {}
+
+
+def _load_file(path: Path) -> dict[str, Any]:
+    """Load a JSON config file, returning only keys that exist in DEFAULTS."""
+    try:
+        if not path.is_file():
+            return {}
+        data = json.loads(path.read_text())
+        if not isinstance(data, dict):
+            return {}
+        return {k: v for k, v in data.items() if k in DEFAULTS}
+    except Exception:
+        return {}
+
+
+def _load_configs() -> None:
+    """Load user and project config files."""
+    global _user_config, _project_config
+    _user_config = _load_file(USER_CONFIG)
+    _project_config = _load_file(PROJECT_CONFIG)
+
+
+# Load on import
+_load_configs()
 
 
 def get(key: str) -> Any:
     """Get config value with resolution: runtime > project > user > defaults."""
     if key in _runtime_overrides:
         return _runtime_overrides[key]
+    if key in _project_config:
+        return _project_config[key]
+    if key in _user_config:
+        return _user_config[key]
     return DEFAULTS.get(key)
 
 
@@ -55,9 +89,30 @@ def set_runtime(key: str, value: str) -> tuple[bool, str]:
     return True, f"{key}: {old} -> {coerced}"
 
 
+def reload() -> None:
+    """Re-read config files from disk. Runtime overrides are preserved."""
+    _load_configs()
+
+
 def list_config() -> dict[str, Any]:
-    """Return all effective config values."""
+    """Return all effective config values with source annotation."""
     result = {}
     for key in DEFAULTS:
         result[key] = get(key)
+    return result
+
+
+def list_config_sources() -> dict[str, dict]:
+    """Return config values with their resolution source."""
+    result = {}
+    for key in DEFAULTS:
+        if key in _runtime_overrides:
+            source = "runtime"
+        elif key in _project_config:
+            source = "project"
+        elif key in _user_config:
+            source = "user"
+        else:
+            source = "default"
+        result[key] = {"value": get(key), "source": source}
     return result
