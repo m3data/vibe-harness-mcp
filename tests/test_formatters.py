@@ -12,22 +12,8 @@ from formatters import (
     format_status_line,
     format_history,
     format_nudge_output,
-    MODE_BANNERS,
-    FRICTION_BANNER,
-    NUDGE_BANNER,
 )
 from session import VibeSession
-
-
-class TestBanners:
-    def test_all_modes_have_banners(self):
-        for mode in ["explore", "build", "think-with", "ship", "cool-off"]:
-            assert mode in MODE_BANNERS, f"Missing banner for {mode}"
-
-    def test_banners_use_mode_character(self):
-        chars = {"explore": "~", "build": ">", "think-with": "?", "ship": "!", "cool-off": "."}
-        for mode, char in chars.items():
-            assert char in MODE_BANNERS[mode]
 
 
 class TestFormatModeSwitch:
@@ -40,8 +26,8 @@ class TestFormatModeSwitch:
             "awaiting_confirmation": False,
         }
         output = format_mode_switch(result)
-        assert ">>>" in output
-        assert "Build" in output
+        assert "Mode: Build" in output
+        assert "Concise, code-first." in output
 
     def test_high_friction_warning(self):
         result = {
@@ -52,7 +38,7 @@ class TestFormatModeSwitch:
             "awaiting_confirmation": True,
         }
         output = format_mode_switch(result)
-        assert "F R I C T I O N" in output
+        assert "FRICTION" in output
         assert "big shift" in output
 
     def test_error(self):
@@ -71,7 +57,7 @@ class TestFormatVibeCheck:
     def test_basic_output(self):
         s = VibeSession()
         output = format_vibe_check(s)
-        assert "E X P L O R E" in output
+        assert "Mode: Explore" in output
         assert "mode" in output
         assert "session" in output
         assert "actions" in output
@@ -80,13 +66,12 @@ class TestFormatVibeCheck:
     def test_with_nudge(self):
         s = VibeSession()
         output = format_vibe_check(s, nudge="Take a break")
-        assert "N U D G E" in output
-        assert "Take a break" in output
+        assert "Nudge: Take a break" in output
 
     def test_without_nudge_no_nudge_section(self):
         s = VibeSession()
         output = format_vibe_check(s)
-        assert "N U D G E" not in output
+        assert "Nudge" not in output
 
     def test_shows_nudge_count(self):
         s = VibeSession()
@@ -123,18 +108,17 @@ class TestFormatHistory:
         s.set_mode("build")
         s.set_mode("ship")
         output = format_history(s)
-        assert "M O D E   H I S T O R Y" in output
+        assert "Mode History" in output
         assert "explore" in output
         assert "build" in output
         assert "ship" in output
-        assert "───>" in output
 
-    def test_time_in_mode_bars(self):
+    def test_time_in_mode_summary(self):
         s = VibeSession()
         s.started_at = datetime.now(timezone.utc) - timedelta(minutes=10)
         s.set_mode("build")
         output = format_history(s)
-        assert "T I M E   I N   M O D E" in output
+        assert "Time in Mode" in output
 
 
 class TestFormatNudgeOutput:
@@ -144,5 +128,4 @@ class TestFormatNudgeOutput:
 
     def test_with_nudge(self):
         output = format_nudge_output("Time to rest")
-        assert "N U D G E" in output
-        assert "Time to rest" in output
+        assert "Nudge: Time to rest" in output

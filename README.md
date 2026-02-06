@@ -6,22 +6,13 @@ Humans are variable and models are adjustable. Most AI tools assume stable human
 
 ## Modes
 
-```
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~        >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-~        E X P L O R E        ~        >          B U I L D          >
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~        >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-Open, divergent, follow threads        Concise, code-first, action-biased
-
-???????????????????????????????        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-?      T H I N K - W I T H    ?        !           S H I P           !
-???????????????????????????????        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-Reflective, holds complexity           Decisive, catches scope creep
-
-...............................
-.       C O O L - O F F       .
-...............................
-Minimal output, wind-down
-```
+| Mode | Orientation |
+|------|-------------|
+| **Explore** | Open, divergent, follow threads |
+| **Build** | Concise, code-first, action-biased |
+| **Think-with** | Reflective, holds complexity |
+| **Ship** | Decisive, catches scope creep |
+| **Cool-off** | Minimal output, wind-down |
 
 ## Transition Friction
 
@@ -46,11 +37,17 @@ Cool-off is always friction-free to enter.
 
 ## Slash Commands
 
-If running inside Claude Code with skills configured:
+The `skills/` directory contains Claude Code skill definitions for convenient slash commands:
 
 - `/vibe` — check current state
 - `/vibe-mode <mode>` — switch mode
 - `/vibe-history` — transition timeline
+
+To install, copy the skill folders into your project's `.claude/skills/` directory:
+
+```bash
+cp -r /path/to/vibe-harness/skills/* /your/project/.claude/skills/
+```
 
 ## Governor (Nudge Logic)
 

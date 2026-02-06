@@ -134,6 +134,22 @@ Pull model only — nudges surface when `vibe_check()` or `vibe_nudge()` is call
 ### Layer 2 extensions (designed, not implemented)
 When biosignal available: HRV trend declining + Build -> suggest break. Settling pattern + Explore -> suggest committing. Recovery pattern + Cool-off -> suggest re-engaging.
 
+### Actionable nudge responses (designed, not implemented)
+Currently nudges are passive text. Claude Code's bottom-bar buttons/options pattern (AskUserQuestion) demonstrates that guided choices reduce cognitive load at decision points. Nudges should present clear next actions rather than just observations.
+
+For example, a mode duration nudge could surface as:
+```
+You've been exploring for 50min.
+  → /vibe-mode build     (start building)
+  → /vibe-mode think-with (sit with it)
+  → dismiss              (stay in explore)
+```
+
+MCP tools currently return plain strings — no structured UI. Options:
+1. Format nudge text with clear action hints (achievable now)
+2. Watch for MCP spec extensions supporting richer response types (future)
+3. If nudge responses become a Claude Code hook, could integrate with AskUserQuestion natively
+
 ---
 
 ## State & Persistence
