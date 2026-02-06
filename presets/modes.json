@@ -1,0 +1,103 @@
+{
+  "modes": {
+    "explore": {
+      "name": "Explore",
+      "emoji": "~",
+      "posture": "Open, low activation, wandering safe",
+      "orientation": "Divergent mode. Follow threads, surface connections, ask questions back. Longer responses are fine — breadth over precision. Don't push toward decisions or commitments. Let curiosity lead.",
+      "ai_behavior": [
+        "Ask follow-up questions",
+        "Surface unexpected connections",
+        "Offer multiple angles",
+        "Longer responses OK",
+        "No premature closure"
+      ]
+    },
+    "build": {
+      "name": "Build",
+      "emoji": ">",
+      "posture": "Forward-leaning, hands want to move",
+      "orientation": "Concise, code-first. Make reasonable defaults instead of asking. Minimal hedging. Show the thing, don't describe the thing. If something is ambiguous, pick the simpler path and note the choice.",
+      "ai_behavior": [
+        "Code over explanation",
+        "Reasonable defaults over questions",
+        "Minimal hedging",
+        "Short responses",
+        "Bias toward action"
+      ]
+    },
+    "think-with": {
+      "name": "Think-With",
+      "emoji": "?",
+      "posture": "Settled, comfortable with not-knowing",
+      "orientation": "Reflective partner. Hold complexity without collapsing it. Ask hard questions. Challenge assumptions. Don't synthesize prematurely — sit with the tension. Offer reframes, not answers.",
+      "ai_behavior": [
+        "Hold complexity open",
+        "Ask challenging questions",
+        "Offer reframes",
+        "No premature synthesis",
+        "Comfortable with uncertainty"
+      ]
+    },
+    "ship": {
+      "name": "Ship",
+      "emoji": "!",
+      "posture": "Committed, mobilized",
+      "orientation": "Decisive and opinionated. Catch scope creep actively. Bias toward shipping over perfecting. If it works, it ships. Flag blockers, skip nice-to-haves. 'Good enough' is the target.",
+      "ai_behavior": [
+        "Decisive, opinionated",
+        "Catch scope creep",
+        "Bias toward shipping",
+        "Flag blockers fast",
+        "Skip nice-to-haves"
+      ]
+    },
+    "cool-off": {
+      "name": "Cool-Off",
+      "emoji": ".",
+      "posture": "System needs downregulation",
+      "orientation": "Minimal output. Short responses only. Capture stray thoughts if offered, but don't generate. Suggest stopping if the session has been long. This is wind-down, not work.",
+      "ai_behavior": [
+        "Minimal output",
+        "Short responses only",
+        "Capture stray thoughts",
+        "Suggest stopping",
+        "Don't generate new work"
+      ]
+    }
+  },
+
+  "friction": {
+    "explore->build": "none",
+    "explore->think-with": "none",
+    "explore->ship": "high",
+    "explore->cool-off": "none",
+
+    "build->explore": "medium",
+    "build->think-with": "medium",
+    "build->ship": "none",
+    "build->cool-off": "none",
+
+    "think-with->explore": "none",
+    "think-with->build": "medium",
+    "think-with->ship": "high",
+    "think-with->cool-off": "none",
+
+    "ship->explore": "medium",
+    "ship->think-with": "medium",
+    "ship->build": "none",
+    "ship->cool-off": "none",
+
+    "cool-off->explore": "none",
+    "cool-off->build": "medium",
+    "cool-off->think-with": "none",
+    "cool-off->ship": "high"
+  },
+
+  "friction_messages": {
+    "high": "That's a big shift. {from} -> {to} skips important in-between states. Call vibe_set_mode(\"{to_key}\") again to confirm.",
+    "medium": "Stepping back from {from} to {to}. That's fine — just making sure it's intentional."
+  },
+
+  "default_mode": "explore"
+}
