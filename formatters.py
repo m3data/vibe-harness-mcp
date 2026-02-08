@@ -103,18 +103,17 @@ def format_onboarding() -> str:
     """First-run onboarding message for new users."""
     return (
         "Welcome to Vibe Harness.\n\n"
-        "This tool adjusts AI behaviour to match your working state.\n\n"
-        "Five modes:\n"
+        "Before you start: notice how your body feels right now.\n"
+        "That awareness is the foundation everything else builds on.\n\n"
+        "Five modes help you name where you are:\n"
         "  Explore     Open, divergent, follow threads\n"
         "  Build       Concise, code-first, action-biased\n"
         "  Think-With  Reflective, holds complexity\n"
         "  Ship        Decisive, catches scope creep\n"
         "  Cool-Off    Minimal output, wind-down\n\n"
-        "Governance is defeasible: nudge rules have priorities and can be\n"
-        "overridden by higher-priority evidence. Session exports show which\n"
-        "rules fired and which were defeated. Adjust thresholds with\n"
-        "vibe_configure().\n\n"
-        "Start with vibe_set_mode() or stay in Explore."
+        "Name your mode with vibe_set_mode(). The AI adjusts to match.\n"
+        "Check in with vibe_check() or ask for a nudge with vibe_nudge().\n"
+        "Everything is pull-only. Nothing interrupts. You set the tempo."
     )
 
 

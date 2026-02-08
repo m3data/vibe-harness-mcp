@@ -133,21 +133,21 @@ def _too_many_interactions(state: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 _MODE_DURATION_MESSAGES = {
-    "explore": "You've been exploring for {minutes}min. Ready to build something?",
-    "build": "Building for {minutes}min. Ready to ship, or need to step back?",
-    "think-with": "Sitting with this for {minutes}min. Has anything crystallised?",
-    "ship": "Shipping for {minutes}min. Is this still the right mode, or is build more honest?",
-    "cool-off": "You've been cooling off for {minutes}min. Ready to gently re-engage?",
+    "explore": "Notice your body. Still curious, or starting to spin? ({minutes}min in explore)",
+    "build": "Check in: are your shoulders tense? Breathing shallow? ({minutes}min in build)",
+    "think-with": "Has something landed, or are you circling? Trust what your body knows. ({minutes}min in think-with)",
+    "ship": "Pause. Is this shipping energy or grinding energy? Your body knows the difference. ({minutes}min in ship)",
+    "cool-off": "How do you feel? Ready to re-engage, or does your body want more rest? ({minutes}min in cool-off)",
 }
 
 _MODE_DRIFT_MESSAGES = {
     "explore": (
-        "High interaction count in explore. "
-        "Might be building without naming it."
+        "Lots of activity for explore mode. "
+        "Notice: does this feel like building? Name it if so."
     ),
     "ship": (
-        "Shipping for over an hour. "
-        "If it's not shipping, build might be more honest."
+        "Over an hour in ship. "
+        "Notice whether you're actually shipping or pushing through. Your body will tell you."
     ),
 }
 
@@ -158,8 +158,8 @@ def _cooldown_msg(state: dict) -> str:
 
 def _session_too_long_msg(state: dict) -> str:
     return (
-        f"You've been in session for {round(state['session_minutes'])}min "
-        f"(limit: {state['session_max_minutes']}min). Consider cool-off."
+        f"It's been {round(state['session_minutes'])} minutes. "
+        "How does your body feel? This might be a good time to step away."
     )
 
 
@@ -176,7 +176,7 @@ def _mode_drift_msg(state: dict) -> str:
 def _too_many_interactions_msg(state: dict) -> str:
     return (
         f"{state['interactions']} interactions without a mode switch. "
-        "Worth checking: is the current mode still right?"
+        "Pause and notice: does this mode still match how you feel?"
     )
 
 

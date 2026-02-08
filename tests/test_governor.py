@@ -54,7 +54,7 @@ class TestSessionDuration:
         s.started_at = datetime.now(timezone.utc) - timedelta(minutes=130)
         nudge = evaluate_nudge(s)
         assert nudge is not None
-        assert "cool-off" in nudge
+        assert "step away" in nudge
 
     def test_no_nudge_within_session_limit(self):
         s = VibeSession()
@@ -71,36 +71,36 @@ class TestModeDuration:
         s.mode = "explore"
         s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=50)
         nudge = evaluate_nudge(s)
-        assert "exploring" in nudge
-        assert "build" in nudge.lower()
+        assert "explore" in nudge
+        assert "curious" in nudge
 
     def test_build_duration_nudge(self):
         s = VibeSession()
         s.mode = "build"
         s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=50)
         nudge = evaluate_nudge(s)
-        assert "Building" in nudge
+        assert "build" in nudge
 
     def test_think_with_duration_nudge(self):
         s = VibeSession()
         s.mode = "think-with"
         s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=50)
         nudge = evaluate_nudge(s)
-        assert "crystallised" in nudge
+        assert "think-with" in nudge
 
     def test_ship_duration_nudge(self):
         s = VibeSession()
         s.mode = "ship"
         s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=50)
         nudge = evaluate_nudge(s)
-        assert "Shipping" in nudge
+        assert "ship" in nudge
 
     def test_cool_off_duration_nudge(self):
         s = VibeSession()
         s.mode = "cool-off"
         s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=50)
         nudge = evaluate_nudge(s)
-        assert "cooling off" in nudge
+        assert "cool-off" in nudge
 
     def test_no_nudge_below_threshold(self):
         s = VibeSession()
@@ -127,7 +127,7 @@ class TestModeDrift:
         s.interaction_count = 60
         nudge = evaluate_nudge(s)
         assert nudge is not None
-        assert "building without naming" in nudge
+        assert "feel like building" in nudge
 
     def test_explore_low_interactions_no_drift(self):
         s = VibeSession()
@@ -148,7 +148,7 @@ class TestModeDrift:
         s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=65)
         nudge = evaluate_nudge(s)
         assert nudge is not None
-        assert "build" in nudge.lower()
+        assert "shipping" in nudge.lower()
 
 
 class TestInteractionCount:
@@ -184,7 +184,7 @@ class TestPriorityOrder:
         s.started_at = datetime.now(timezone.utc) - timedelta(minutes=130)
         s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=50)
         nudge = evaluate_nudge(s)
-        assert "cool-off" in nudge  # session duration, not mode duration
+        assert "step away" in nudge  # session duration, not mode duration
 
     def test_cooldown_suppresses_everything(self):
         """Cooldown (rule 1) blocks all other rules."""
