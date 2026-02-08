@@ -3,7 +3,7 @@
 ![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
 ![Version](https://img.shields.io/badge/VERSION-0.2.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
-![Tests](https://img.shields.io/badge/TESTS-90_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
+![Tests](https://img.shields.io/badge/TESTS-94_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
 ![MCP](https://img.shields.io/badge/MCP-stdio-purple?style=for-the-badge&labelColor=7c3aed&color=5b21b6)
 
 An MCP server that tunes human-AI interaction rhythm based on working modes.
@@ -52,7 +52,7 @@ The `skills/` directory contains Claude Code skill definitions for convenient sl
 To install, copy the skill folders into your project's `.claude/skills/` directory:
 
 ```bash
-cp -r /path/to/vibe-harness/skills/* /your/project/.claude/skills/
+cp -r /path/to/vibe-harness-mcp/skills/* /your/project/.claude/skills/
 ```
 
 ## Governor (Nudge Logic)
@@ -123,7 +123,7 @@ Three-layer resolution: `defaults < ~/.vibe-harness/config.json < .vibe-harness.
 ## Setup
 
 ```bash
-cd vibe-harness
+cd vibe-harness-mcp
 pip install -r requirements.txt
 python server.py  # stdio transport for MCP
 ```
@@ -132,9 +132,9 @@ Register in `~/.claude.json` under `mcpServers`:
 
 ```json
 {
-  "vibe-harness": {
+  "vibe-harness-mcp": {
     "command": "python",
-    "args": ["/path/to/vibe-harness/server.py"],
+    "args": ["/path/to/vibe-harness-mcp/server.py"],
     "type": "stdio"
   }
 }
@@ -143,7 +143,7 @@ Register in `~/.claude.json` under `mcpServers`:
 ## Tests
 
 ```bash
-cd vibe-harness
+cd vibe-harness-mcp
 python -m pytest tests/ -v
 ```
 
