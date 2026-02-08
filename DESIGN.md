@@ -222,6 +222,72 @@ MCP tools currently return plain strings — no structured UI. Options:
 
 ---
 
+## Open Design Threads
+
+Captured 2026-02-08. These emerged from mapping the landing page value proposition against lived-experience research on AI-induced fatigue, then pressure-testing the MCP flow against the interoceptive awareness framing.
+
+### 1. Cross-Session Allostatic Load
+
+Layer 1 is session-scoped. The governor resets with each new MCP process. But the research evidence (context-building/vibing-research.md) shows fatigue accumulates across days, not sessions. "Fine for the first few hours, wrecked the next day." "By day three I'm useless."
+
+The JSONL mode history at `~/.vibe-harness/mode-history.jsonl` is already write-only persistent. Nothing reads it back to inform the next session's starting conditions.
+
+**Design question:** What does carry-forward look like? Options:
+- Simple: cumulative session minutes over trailing 3 days, session count, average session length
+- Richer: how the last session ended (cool-off reached vs abrupt stop), what mode it was in, whether the session escalated (explore→build→ship without pauses). An abrupt stop with no cool-off is itself a signal, the way a cortisol curve that never returns to baseline tells you something different from one that does.
+
+**Status:** Buildable as Layer 1.x. Data already exists.
+
+### 2. Ground as Exit, Not Mode
+
+The current five modes all assume the human is still working with the AI. There's no response for "I need to stop and remember who I am." The research describes this clearly: "It takes me an hour to feel like a human again." "I close the laptop and feel oddly hollow."
+
+Initial instinct was a sixth mode (Ground/Reclaim). Better framing: this isn't a mode, it's an exit. A mode implies the AI is still active and participating. Grounding means the AI should go quiet. That's architecturally different.
+
+**Design direction:** A governor rule rather than a mode. When accumulated signals suggest dysregulation (sustained build with no cool-off, cross-session escalation, abrupt prior session endings), the recommendation isn't a mode switch. It's "close the laptop." The tool recognising its own boundary.
+
+**Tension:** How does a tool recommend its own absence? What does that look like in MCP output? This connects to the Somatic AI Safety paper.
+
+### 3. The Bootstrap Problem and Consent-to-Push
+
+Pull-only is a principled choice (locus of control stays with the human). But it has a failure mode exactly where it matters most. The research describes dissociative states where metacognitive awareness is reduced: "I'm physically here but mentally still prompting." The people most at risk are the ones least likely to call `vibe_check()`.
+
+Layer 2 biosignal partially addresses this (HRV doesn't require metacognitive awareness to detect dysregulation). But there's a gap between Layer 1 and Layer 2.
+
+**Intermediate design: consent-to-push as a continuum.** Rather than a binary toggle, onboarding could establish a care threshold:
+
+- **Silent** (default) — Pure pull. No AI-initiated check-ins. You call `vibe_check()` when you choose to.
+- **Gentle** — AI may ask "how are you feeling?" after long stretches, but only when you're already in conversation. No interruption of flow.
+- **Active** — AI periodically calls `vibe_check()` and surfaces nudges. You consented to this. You can revoke anytime.
+
+This is a consent gradient configured once and adjustable. The onboarding moment itself becomes interoceptive: you have to notice what level of support you need.
+
+**Critical principle:** This must be named honestly. "Gentle" and "Active" are push, even when framed as pull. Default must be Silent. Opt-in push, not default push. Otherwise we've built the same always-on nudging system the tool critiques.
+
+### 4. Polyvagal Framing
+
+The transition friction matrix is encoding a claim about ventral vagal windows: certain cognitive transitions are safe when the nervous system is regulated and risky when it's not. The friction isn't about the cognitive leap from explore to ship. It's about the autonomic cost of skipping integrative phases.
+
+This theoretical grounding (Porges, Dana) should be explicit in this document. Currently the friction matrix reads as informed intuition. With polyvagal framing named, it reads as applied neuroscience.
+
+**Status:** Quick write. Needs Porges (2011) polyvagal theory and Dana (2018) clinical applications as explicit references. The friction matrix section above should note the autonomic basis.
+
+### 5. The Tool as Argument
+
+Every design choice in Vibe Harness is a position in the autonomy-vs-care debate:
+- Pull-only with its known failure mode: a claim about where the locus of control should sit
+- The friction matrix encoding autonomic cost: a claim about embodied transition dynamics
+- Defeasible governance with full traces: a claim about transparency in AI behavioural modification
+- The interoception-first reframe ("helps you notice where you are"): a claim about what the tool believes
+
+The design choices are evidence for the Somatic AI Safety paper and the preprint. The tool is an argument, not just an instrument.
+
+### 6. Reflexivity as Methodology
+
+This tool is being designed, built, and tested by the same person who is researching human-AI coupling dynamics, while working with an AI collaborator who has full context on the research ecology. Researcher, subject, and tool-builder are the same person. This is methodologically unusual and should be named explicitly in the preprint as a feature of generative action research, not a limitation. The reflexivity is the rigour.
+
+---
+
 ## Critical Reference Files
 
 - `zotero-mcp/server.py` — MCP server pattern (FastMCP, stdio, tool registration)
