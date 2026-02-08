@@ -45,13 +45,29 @@ class VibeSession:
     nudges_surfaced: int = 0
     last_nudge_at: Optional[datetime] = None
 
+    # Governance trace (list of evaluation dicts from governor.evaluate_rules)
+    governance_trace: list[dict] = field(default_factory=list)
+
     # High-friction confirmation state
     _pending_mode: Optional[str] = field(default=None, repr=False)
     _pending_friction: Optional[str] = field(default=None, repr=False)
+    _onboarding_shown: bool = field(default=False, repr=False)
 
     def record_interaction(self) -> None:
         """Increment interaction counter. Call on every tool invocation."""
         self.interaction_count += 1
+
+    def record_governance_evaluation(self, evaluations: list[dict]) -> None:
+        """Record a governance trace entry from evaluate_rules().
+
+        Each entry is timestamped and contains the full evaluation of all
+        rules — which fired, which were defeated, and by what. This is the
+        accountability trail for defeasible governance.
+        """
+        self.governance_trace.append({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "evaluations": evaluations,
+        })
 
     def set_mode(self, new_mode: str) -> dict:
         """Attempt a mode transition.
@@ -216,7 +232,7 @@ class VibeSession:
     def to_export_dict(self) -> dict:
         """Full session data for JSON export."""
         return {
-            "schema_version": "0.1.0",
+            "schema_version": "0.2.0",
             "session_id": self.session_id,
             "started_at": self.started_at.isoformat(),
             "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -226,4 +242,5 @@ class VibeSession:
             "nudges_surfaced": self.nudges_surfaced,
             "transitions": [t.to_dict() for t in self.transitions],
             "time_in_mode": self.time_in_mode_summary(),
+            "governance_trace": self.governance_trace,
         }

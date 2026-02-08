@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import config
-from governor import evaluate_nudge, format_nudge_or_clear
+from governor import evaluate_nudge, evaluate_rules, format_nudge_or_clear, RULES, GovernanceRule, RuleEvaluation
 from session import VibeSession
 
 
@@ -194,6 +194,117 @@ class TestPriorityOrder:
         s.interaction_count = 200
         s.last_nudge_at = datetime.now(timezone.utc) - timedelta(minutes=5)
         assert evaluate_nudge(s) is None
+
+
+class TestRuleStructure:
+    """Verify rules are well-formed data objects."""
+
+    def test_five_rules_defined(self):
+        assert len(RULES) == 5
+
+    def test_rules_have_unique_names(self):
+        names = [r.name for r in RULES]
+        assert len(names) == len(set(names))
+
+    def test_rules_have_unique_priorities(self):
+        priorities = [r.priority for r in RULES]
+        assert len(priorities) == len(set(priorities))
+
+    def test_rule_types_valid(self):
+        for r in RULES:
+            assert r.rule_type in ("suppress", "nudge", "drift")
+
+    def test_cooldown_has_no_defeaters(self):
+        cooldown = [r for r in RULES if r.name == "cooldown_suppression"][0]
+        assert cooldown.defeated_by == []
+
+    def test_defeated_by_references_valid_rules(self):
+        names = {r.name for r in RULES}
+        for r in RULES:
+            for d in r.defeated_by:
+                assert d in names, f"{r.name} references unknown defeater: {d}"
+
+    def test_defeated_by_only_references_higher_priority(self):
+        priority_of = {r.name: r.priority for r in RULES}
+        for r in RULES:
+            for d in r.defeated_by:
+                assert priority_of[d] < r.priority, (
+                    f"{r.name} (pri {r.priority}) claims defeated by "
+                    f"{d} (pri {priority_of[d]}) which is not higher priority"
+                )
+
+
+class TestGovernanceTrace:
+    def setup_method(self):
+        _fresh_config()
+
+    def test_evaluate_rules_returns_tuple(self):
+        s = VibeSession()
+        result = evaluate_rules(s)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_trace_has_all_rules(self):
+        s = VibeSession()
+        _, trace = evaluate_rules(s)
+        assert len(trace) == 5
+
+    def test_trace_records_fired_rule(self):
+        s = VibeSession()
+        s.mode = "explore"
+        s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=50)
+        _, trace = evaluate_rules(s)
+        mode_duration = [e for e in trace if e.rule_name == "mode_duration"][0]
+        assert mode_duration.fired is True
+        assert mode_duration.defeated is False
+
+    def test_cooldown_defeats_other_rules(self):
+        s = VibeSession()
+        s.started_at = datetime.now(timezone.utc) - timedelta(minutes=130)
+        s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=130)
+        s.last_nudge_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        _, trace = evaluate_rules(s)
+        cooldown = [e for e in trace if e.rule_name == "cooldown_suppression"][0]
+        assert cooldown.fired is True
+        session_dur = [e for e in trace if e.rule_name == "session_duration"][0]
+        assert session_dur.fired is True
+        assert session_dur.defeated is True
+        assert session_dur.defeated_by == "cooldown_suppression"
+
+    def test_no_rules_fired_trace(self):
+        s = VibeSession()
+        _, trace = evaluate_rules(s)
+        assert all(not e.fired for e in trace)
+
+    def test_backwards_compat_evaluate_nudge(self):
+        """evaluate_nudge still works and returns same results."""
+        s = VibeSession()
+        s.mode = "explore"
+        s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=50)
+        nudge = evaluate_nudge(s)
+        message, _ = evaluate_rules(s)
+        assert nudge == message
+
+    def test_rule_evaluation_to_dict(self):
+        e = RuleEvaluation(
+            rule_name="test_rule",
+            fired=True,
+            defeated=True,
+            defeated_by="cooldown_suppression",
+            message="test message",
+        )
+        d = e.to_dict()
+        assert d["rule"] == "test_rule"
+        assert d["fired"] is True
+        assert d["defeated"] is True
+        assert d["defeated_by"] == "cooldown_suppression"
+        assert d["message"] == "test message"
+
+    def test_rule_evaluation_to_dict_minimal(self):
+        e = RuleEvaluation(rule_name="test", fired=False, defeated=False)
+        d = e.to_dict()
+        assert "defeated_by" not in d
+        assert "message" not in d
 
 
 class TestFormatting:

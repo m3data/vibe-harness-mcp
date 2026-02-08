@@ -15,8 +15,9 @@ from mcp.server.fastmcp import FastMCP
 
 from session import VibeSession
 from modes import valid_modes, get_mode
-from formatters import format_mode_switch, format_vibe_check, format_status_line, format_history, format_nudge_output
-from governor import evaluate_nudge
+from formatters import format_mode_switch, format_vibe_check, format_status_line, format_history, format_nudge_output, format_onboarding
+from governor import evaluate_rules
+from session import HISTORY_FILE
 import config
 
 # ---------------------------------------------------------------------------
@@ -26,6 +27,14 @@ import config
 _session = VibeSession()
 
 EXPORT_DIR = Path.home() / ".vibe-harness" / "sessions"
+
+
+def _get_onboarding_message():
+    """Return onboarding text on first run (no history file), or None."""
+    if _session._onboarding_shown or HISTORY_FILE.exists():
+        return None
+    _session._onboarding_shown = True
+    return format_onboarding()
 
 # ---------------------------------------------------------------------------
 # MCP Server
@@ -61,11 +70,18 @@ def vibe_check() -> str:
     Call this to understand the human's current working context.
     """
     _session.record_interaction()
-    nudge = evaluate_nudge(_session)
+    nudge, evaluations = evaluate_rules(_session)
     if nudge:
         _session.nudges_surfaced += 1
         _session.last_nudge_at = datetime.now(timezone.utc)
-    return format_vibe_check(_session, nudge=nudge)
+    _session.record_governance_evaluation(
+        [e.to_dict() for e in evaluations]
+    )
+    onboarding = _get_onboarding_message()
+    output = format_vibe_check(_session, nudge=nudge)
+    if onboarding:
+        output = onboarding + "\n\n---\n\n" + output
+    return output
 
 
 @mcp.tool()
@@ -74,10 +90,13 @@ def vibe_nudge() -> str:
     a suggestion (e.g. take a break, switch modes) or 'all clear'.
     """
     _session.record_interaction()
-    nudge = evaluate_nudge(_session)
+    nudge, evaluations = evaluate_rules(_session)
     if nudge:
         _session.nudges_surfaced += 1
         _session.last_nudge_at = datetime.now(timezone.utc)
+    _session.record_governance_evaluation(
+        [e.to_dict() for e in evaluations]
+    )
     return format_nudge_output(nudge)
 
 

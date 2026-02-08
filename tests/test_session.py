@@ -132,7 +132,7 @@ class TestExport:
         s = VibeSession()
         s.set_mode("build")
         data = s.to_export_dict()
-        assert data["schema_version"] == "0.1.0"
+        assert data["schema_version"] == "0.2.0"
         assert data["session_id"] == s.session_id
         assert data["current_mode"] == "build"
         assert "started_at" in data
@@ -141,6 +141,37 @@ class TestExport:
         assert "transitions" in data
         assert "time_in_mode" in data
         assert len(data["transitions"]) == 1
+        assert "governance_trace" in data
+        assert isinstance(data["governance_trace"], list)
+
+
+class TestGovernanceTrace:
+    def test_record_governance_evaluation(self):
+        s = VibeSession()
+        evaluations = [
+            {"rule": "cooldown_suppression", "fired": False, "defeated": False},
+            {"rule": "session_duration", "fired": True, "defeated": False, "message": "test"},
+        ]
+        s.record_governance_evaluation(evaluations)
+        assert len(s.governance_trace) == 1
+        assert s.governance_trace[0]["evaluations"] == evaluations
+        assert "timestamp" in s.governance_trace[0]
+
+    def test_multiple_evaluations_append(self):
+        s = VibeSession()
+        s.record_governance_evaluation([{"rule": "a", "fired": False, "defeated": False}])
+        s.record_governance_evaluation([{"rule": "b", "fired": True, "defeated": False}])
+        assert len(s.governance_trace) == 2
+
+    def test_governance_trace_in_export(self):
+        s = VibeSession()
+        s.record_governance_evaluation([{"rule": "test", "fired": True, "defeated": False}])
+        data = s.to_export_dict()
+        assert len(data["governance_trace"]) == 1
+
+    def test_onboarding_shown_default_false(self):
+        s = VibeSession()
+        assert s._onboarding_shown is False
 
 
 class TestJSONLLogging:

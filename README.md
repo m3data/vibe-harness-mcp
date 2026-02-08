@@ -1,14 +1,14 @@
 # Vibe Harness MCP
 
 ![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
-![Version](https://img.shields.io/badge/VERSION-0.1.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
+![Version](https://img.shields.io/badge/VERSION-0.2.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
-![Tests](https://img.shields.io/badge/TESTS-71_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
+![Tests](https://img.shields.io/badge/TESTS-90_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
 ![MCP](https://img.shields.io/badge/MCP-stdio-purple?style=for-the-badge&labelColor=7c3aed&color=5b21b6)
 
 An MCP server that tunes human-AI interaction rhythm based on working modes.
 
-Humans are variable and models are adjustable. Most AI tools assume stable humans and optimize model output. Vibe Harness inverts this — it adjusts AI behavior to match the human's working state.
+Humans are variable and models are adjustable. Most AI tools assume stable humans and optimise model output. Vibe Harness inverts this — it adjusts AI behaviour to match the human's working state.
 
 ## Modes
 
@@ -67,6 +67,31 @@ Rules (in priority order):
 5. **Interaction count** — 100+ actions without a mode switch → check in
 
 All thresholds configurable via `vibe_configure()` or config files.
+
+## Defeasible Governance
+
+Governance rules can be overridden. This is by design.
+
+Think of it like screen time alerts on your phone. The alert fires based on a rule ("you've been scrolling for 45 minutes") but other rules can override it ("you already saw a nudge 5 minutes ago, don't nag"). The first rule's conclusion is *defeated* by the second rule's higher priority.
+
+Vibe Harness makes this explicit:
+- Each rule has a **name**, **priority**, and **type** (suppress, nudge, or drift)
+- Each rule declares what can defeat it
+- Session exports include a **governance trace** showing which rules fired and which were overridden
+
+This matters for accountability. Silent overrides are invisible governance. Explicit defeasibility means you can see *why* a nudge did or didn't appear.
+
+### Rule Priority (highest first)
+
+| Priority | Rule | Type | Defeated By |
+|----------|------|------|-------------|
+| 1 | Cooldown suppression | suppress | (nothing) |
+| 2 | Session duration | nudge | cooldown |
+| 3 | Mode duration | nudge | cooldown, session duration |
+| 4 | Mode drift | drift | cooldown, session duration, mode duration |
+| 5 | Interaction count | nudge | cooldown, session duration, mode duration, mode drift |
+
+Rules are data, not code. Layer 2 (biosignal) and Layer 3 (semantic coupling) will add new rules and defeaters without restructuring existing logic.
 
 ## Configuration
 

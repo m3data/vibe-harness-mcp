@@ -94,3 +94,40 @@ def format_nudge_output(nudge: Optional[str]) -> str:
     if nudge is None:
         return "All clear. No nudges right now."
     return f"Nudge: {nudge}"
+
+
+# ── Onboarding ───────────────────────────────────────────────────────
+
+
+def format_onboarding() -> str:
+    """First-run onboarding message for new users."""
+    return (
+        "Welcome to Vibe Harness.\n\n"
+        "This tool adjusts AI behaviour to match your working state.\n\n"
+        "Five modes:\n"
+        "  Explore     Open, divergent, follow threads\n"
+        "  Build       Concise, code-first, action-biased\n"
+        "  Think-With  Reflective, holds complexity\n"
+        "  Ship        Decisive, catches scope creep\n"
+        "  Cool-Off    Minimal output, wind-down\n\n"
+        "Governance is defeasible: nudge rules have priorities and can be\n"
+        "overridden by higher-priority evidence. Session exports show which\n"
+        "rules fired and which were defeated. Adjust thresholds with\n"
+        "vibe_configure().\n\n"
+        "Start with vibe_set_mode() or stay in Explore."
+    )
+
+
+def format_governance_trace(evaluations: list[dict]) -> str:
+    """Format governance evaluations for display."""
+    fired = [e for e in evaluations if e.get("fired")]
+    if not fired:
+        return "No governance rules triggered."
+    lines = ["Governance:"]
+    for e in fired:
+        status = "defeated" if e.get("defeated") else "active"
+        line = f"  {e['rule']}: {status}"
+        if e.get("defeated_by"):
+            line += f" (by {e['defeated_by']})"
+        lines.append(line)
+    return "\n".join(lines)

@@ -1,6 +1,6 @@
 [project]
 name = "vibe-harness"
-version = "0.1.0"
+version = "0.2.0"
 description = "MCP server that tunes human-AI interaction rhythm based on working modes and biosignal data"
 requires-python = ">=3.10"
 license = "ESL-A-0.1"
