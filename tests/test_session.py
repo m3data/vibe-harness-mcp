@@ -102,6 +102,42 @@ class TestModeSwitch:
         assert t.confirmed
 
 
+class TestInteractionsSinceSwitch:
+    def test_no_transitions(self):
+        s = VibeSession()
+        s.record_interaction()
+        s.record_interaction()
+        assert s.interactions_since_last_switch() == 2
+
+    def test_resets_on_switch(self):
+        s = VibeSession()
+        for _ in range(5):
+            s.record_interaction()
+        s.set_mode("build")
+        assert s.interactions_since_last_switch() == 0
+
+    def test_counts_after_switch(self):
+        s = VibeSession()
+        for _ in range(5):
+            s.record_interaction()
+        s.set_mode("build")
+        s.record_interaction()
+        s.record_interaction()
+        assert s.interactions_since_last_switch() == 2
+
+    def test_multiple_switches(self):
+        s = VibeSession()
+        for _ in range(3):
+            s.record_interaction()
+        s.set_mode("build")
+        for _ in range(4):
+            s.record_interaction()
+        s.set_mode("think-with")
+        s.record_interaction()
+        assert s.interactions_since_last_switch() == 1
+        assert s.interaction_count == 8  # total preserved
+
+
 class TestDurations:
     def test_mode_duration(self):
         s = VibeSession()

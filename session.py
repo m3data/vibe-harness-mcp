@@ -48,6 +48,9 @@ class VibeSession:
     # Governance trace (list of evaluation dicts from governor.evaluate_rules)
     governance_trace: list[dict] = field(default_factory=list)
 
+    # Tracks interaction count at last mode switch for per-mode counting
+    _interactions_at_last_switch: int = field(default=0, repr=False)
+
     # High-friction confirmation state
     _pending_mode: Optional[str] = field(default=None, repr=False)
     _pending_friction: Optional[str] = field(default=None, repr=False)
@@ -155,6 +158,7 @@ class VibeSession:
 
         self.mode = new_mode
         self.mode_since = now
+        self._interactions_at_last_switch = self.interaction_count
 
         self._log_transition(old_mode, new_mode, friction, now)
 
@@ -195,11 +199,7 @@ class VibeSession:
 
     def interactions_since_last_switch(self) -> int:
         """Interactions since last mode transition."""
-        if not self.transitions:
-            return self.interaction_count
-        # Count interactions that happened after the last transition
-        # (approximate — we track total, not per-mode)
-        return self.interaction_count
+        return self.interaction_count - self._interactions_at_last_switch
 
     def time_in_mode_summary(self) -> dict[str, float]:
         """Calculate time spent in each mode during this session."""
