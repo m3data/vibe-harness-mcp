@@ -7,7 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from session import VibeSession, ModeTransition, HISTORY_FILE
+import config
+from session import VibeSession, ModeTransition, IdleGap, HISTORY_FILE, EXPORT_SCHEMA_VERSION
 
 
 class TestSessionInit:
@@ -168,12 +169,14 @@ class TestExport:
         s = VibeSession()
         s.set_mode("build")
         data = s.to_export_dict()
-        assert data["schema_version"] == "0.2.0"
+        assert data["schema_version"] == EXPORT_SCHEMA_VERSION
         assert data["session_id"] == s.session_id
         assert data["current_mode"] == "build"
         assert "started_at" in data
         assert "exported_at" in data
         assert "duration_minutes" in data
+        assert "active_duration_minutes" in data
+        assert "idle_gaps" in data
         assert "transitions" in data
         assert "time_in_mode" in data
         assert len(data["transitions"]) == 1
@@ -252,3 +255,221 @@ class TestJSONLLogging:
         lines = HISTORY_FILE.read_text().strip().split("\n")
         after_confirm = len(lines)
         assert after_confirm == before + 1
+
+
+class TestIdleGapDetection:
+    def setup_method(self):
+        config._runtime_overrides.clear()
+
+    def test_no_gap_on_first_interaction(self):
+        s = VibeSession()
+        s.record_interaction()
+        assert len(s._idle_gaps) == 0
+        assert s.last_interaction_at is not None
+
+    def test_short_gap_not_recorded(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.last_interaction_at = now - timedelta(minutes=5)
+        s.record_interaction()
+        assert len(s._idle_gaps) == 0
+
+    def test_gap_above_threshold_recorded(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.last_interaction_at = now - timedelta(minutes=45)
+        s.record_interaction()
+        assert len(s._idle_gaps) == 1
+        gap = s._idle_gaps[0]
+        assert gap.duration_seconds >= 45 * 60 - 1  # allow tiny rounding
+
+    def test_gap_at_exact_threshold_recorded(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.last_interaction_at = now - timedelta(minutes=30)
+        s.record_interaction()
+        assert len(s._idle_gaps) == 1
+
+    def test_gap_just_below_threshold_not_recorded(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.last_interaction_at = now - timedelta(minutes=29, seconds=59)
+        s.record_interaction()
+        assert len(s._idle_gaps) == 0
+
+    def test_multiple_idle_gaps(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        # First interaction
+        s.last_interaction_at = now - timedelta(hours=3)
+        # Simulate a 1-hour gap
+        s.last_interaction_at = now - timedelta(hours=3)
+        gap1_end = now - timedelta(hours=2)
+        s._idle_gaps.append(IdleGap(start=s.last_interaction_at, end=gap1_end))
+        s.last_interaction_at = gap1_end
+        # Another 1-hour gap
+        s.last_interaction_at = now - timedelta(hours=1, minutes=30)
+        gap2_start = s.last_interaction_at
+        s.record_interaction()  # this is ~90 min after gap1_end; last_interaction_at was set manually
+        # Actually, let me test more carefully
+        assert len(s._idle_gaps) >= 2
+
+    def test_configurable_threshold(self):
+        config.set_runtime("activity.idle_threshold_minutes", "10")
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.last_interaction_at = now - timedelta(minutes=15)
+        s.record_interaction()
+        assert len(s._idle_gaps) == 1
+
+
+class TestActiveDurations:
+    def test_no_gaps_active_equals_elapsed(self):
+        s = VibeSession()
+        s.started_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+        s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=10)
+        assert abs(s.active_session_minutes() - s.session_duration_minutes()) < 0.1
+        assert abs(s.active_mode_minutes() - s.mode_duration_minutes()) < 0.1
+
+    def test_active_session_subtracts_idle(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=10)
+        s.mode_since = now - timedelta(hours=10)
+        # Add a 9-hour idle gap
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=9, minutes=30),
+            end=now - timedelta(minutes=30),
+        ))
+        # 10h elapsed - 9h idle = ~1h active
+        active = s.active_session_minutes()
+        assert 55 <= active <= 65
+
+    def test_active_mode_only_counts_gaps_after_mode_since(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=5)
+        s.mode_since = now - timedelta(hours=1)
+        # Add a gap that happened BEFORE mode_since — should not affect active mode minutes
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=4),
+            end=now - timedelta(hours=3),
+        ))
+        # Mode is 60 min, no gaps after mode_since
+        assert abs(s.active_mode_minutes() - 60) < 1
+
+    def test_active_mode_subtracts_gap_after_mode_since(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=5)
+        s.mode_since = now - timedelta(hours=2)
+        # Add a 1-hour gap that falls after mode_since
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=1, minutes=30),
+            end=now - timedelta(minutes=30),
+        ))
+        # 2h elapsed - 1h idle = ~1h active
+        active = s.active_mode_minutes()
+        assert 55 <= active <= 65
+
+    def test_gap_straddling_mode_since_partially_counted(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=5)
+        s.mode_since = now - timedelta(hours=2)
+        # Gap that starts before mode_since and ends after
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=3),
+            end=now - timedelta(hours=1),
+        ))
+        # Mode is 2h. Gap overlaps with 1h of it (from mode_since to gap.end).
+        # Active = 2h - 1h = 1h
+        active = s.active_mode_minutes()
+        assert 55 <= active <= 65
+
+    def test_total_idle_minutes(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=5)
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=4),
+            end=now - timedelta(hours=3),
+        ))
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=2),
+            end=now - timedelta(hours=1),
+        ))
+        idle = s.total_idle_minutes()
+        assert 115 <= idle <= 125  # ~2 hours
+
+    def test_active_never_negative(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(minutes=10)
+        s.mode_since = now - timedelta(minutes=10)
+        # Idle gap longer than elapsed (shouldn't happen normally, but guard)
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(minutes=15),
+            end=now,
+        ))
+        assert s.active_session_minutes() >= 0
+        assert s.active_mode_minutes() >= 0
+
+
+class TestTimeInModeSummaryWithIdleGaps:
+    def test_single_mode_subtracts_idle(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=10)
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=9),
+            end=now - timedelta(hours=1),
+        ))
+        summary = s.time_in_mode_summary()
+        # 10h elapsed - 8h idle = ~2h active
+        assert summary["explore"] < 150  # well under 10h
+
+    def test_multi_mode_idle_gap_attributed_correctly(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=4)
+        # Explore for 1h, then switch to build
+        transition_time = now - timedelta(hours=3)
+        s.transitions.append(ModeTransition(
+            from_mode="explore", to_mode="build",
+            timestamp=transition_time, friction="none", confirmed=True,
+        ))
+        s.mode = "build"
+        s.mode_since = transition_time
+        # 2-hour idle gap falls entirely in build span
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=2, minutes=30),
+            end=now - timedelta(minutes=30),
+        ))
+        summary = s.time_in_mode_summary()
+        # Explore: 1h (no gaps), Build: 3h - 2h = 1h
+        assert 55 <= summary["explore"] <= 65
+        assert 55 <= summary["build"] <= 65
+
+
+class TestIdleGapInExport:
+    def test_idle_gaps_in_export(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=2)
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=1, minutes=30),
+            end=now - timedelta(minutes=30),
+        ))
+        data = s.to_export_dict()
+        assert len(data["idle_gaps"]) == 1
+        assert "start" in data["idle_gaps"][0]
+        assert "end" in data["idle_gaps"][0]
+        assert "duration_minutes" in data["idle_gaps"][0]
+        assert data["active_duration_minutes"] < data["duration_minutes"]
+
+    def test_no_idle_gaps_export(self):
+        s = VibeSession()
+        data = s.to_export_dict()
+        assert data["idle_gaps"] == []
+        assert abs(data["active_duration_minutes"] - data["duration_minutes"]) < 0.2

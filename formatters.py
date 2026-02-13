@@ -28,8 +28,9 @@ def format_vibe_check(session, *, nudge: Optional[str] = None) -> str:
     if not mode_def:
         return "Session state unavailable."
 
-    mode_min = round(session.mode_duration_minutes())
-    session_min = round(session.session_duration_minutes())
+    mode_min = round(session.active_mode_minutes())
+    session_min = round(session.active_session_minutes())
+    idle_min = round(session.total_idle_minutes())
 
     lines = [
         f"Mode: {mode_def['name']}",
@@ -41,6 +42,13 @@ def format_vibe_check(session, *, nudge: Optional[str] = None) -> str:
         f"  actions   {session.interaction_count}",
         f"  switches  {len(session.transitions)}",
     ]
+
+    if idle_min > 0:
+        hours = idle_min / 60
+        if hours >= 1:
+            lines.append(f"  away      {hours:.1f}h detected")
+        else:
+            lines.append(f"  away      {idle_min}min detected")
 
     if session.nudges_surfaced > 0:
         lines.append(f"  nudges    {session.nudges_surfaced}")
@@ -61,7 +69,7 @@ def format_status_line(session) -> str:
     """One-line status for vibe://status resource."""
     mode_def = get_mode(session.mode)
     name = mode_def["name"] if mode_def else session.mode
-    mode_min = round(session.mode_duration_minutes())
+    mode_min = round(session.active_mode_minutes())
     return f"{name} | {mode_min}min | {session.interaction_count} interactions | {session.nudges_surfaced} nudges"
 
 

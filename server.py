@@ -13,6 +13,7 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
+from _version import __version__
 from session import VibeSession
 from modes import valid_modes, get_mode
 from formatters import format_mode_switch, format_vibe_check, format_status_line, format_history, format_nudge_output, format_onboarding

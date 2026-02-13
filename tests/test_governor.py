@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import config
 from governor import evaluate_nudge, evaluate_rules, format_nudge_or_clear, RULES, GovernanceRule, RuleEvaluation
-from session import VibeSession
+from session import VibeSession, IdleGap
 
 
 def _fresh_config():
@@ -305,6 +305,67 @@ class TestGovernanceTrace:
         d = e.to_dict()
         assert "defeated_by" not in d
         assert "message" not in d
+
+
+class TestActiveDurationsInGovernor:
+    """Governor should use active (not elapsed) durations, so idle gaps prevent false nudges."""
+
+    def setup_method(self):
+        _fresh_config()
+
+    def test_overnight_session_no_nudge_when_active_time_short(self):
+        """A 24h session with only 5min active should NOT trigger session duration nudge."""
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=24)
+        s.mode_since = now - timedelta(hours=24)
+        # 23h 55min idle gap
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=23, minutes=55),
+            end=now,
+        ))
+        # Active session time: ~5 min (well under 120 min threshold)
+        nudge = evaluate_nudge(s)
+        assert nudge is None
+
+    def test_long_active_session_still_nudges(self):
+        """A 3h session with no idle gaps should still fire session duration nudge."""
+        s = VibeSession()
+        s.started_at = datetime.now(timezone.utc) - timedelta(hours=3)
+        nudge = evaluate_nudge(s)
+        assert nudge is not None
+        assert "step away" in nudge
+
+    def test_mode_duration_uses_active_time(self):
+        """Mode duration nudge should not fire if most of mode time was idle."""
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.mode = "build"
+        s.mode_since = now - timedelta(hours=2)
+        # 1h 50min idle during build
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=1, minutes=50),
+            end=now,
+        ))
+        # Active mode time: ~10 min (under 45 min threshold)
+        nudge = evaluate_nudge(s)
+        assert nudge is None
+
+    def test_mode_duration_fires_when_active_time_exceeds_threshold(self):
+        """Mode duration nudge fires when active time exceeds threshold."""
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.mode = "build"
+        s.mode_since = now - timedelta(hours=2)
+        # Only 30 min idle during build
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=1, minutes=30),
+            end=now - timedelta(hours=1),
+        ))
+        # Active mode time: 2h - 0.5h = 1.5h (90 min, above 45 min threshold)
+        nudge = evaluate_nudge(s)
+        assert nudge is not None
+        assert "build" in nudge
 
 
 class TestFormatting:

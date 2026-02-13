@@ -16,6 +16,7 @@ DEFAULTS = {
     "nudges.cooldown_minutes": 15,
     "friction.enabled": True,
     "export.auto_export": False,
+    "activity.idle_threshold_minutes": 30,
 }
 
 USER_CONFIG = Path.home() / ".vibe-harness" / "config.json"

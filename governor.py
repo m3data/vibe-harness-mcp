@@ -76,8 +76,8 @@ def _build_session_state(session) -> dict:
     now = datetime.now(timezone.utc)
     return {
         "mode": session.mode,
-        "mode_minutes": session.mode_duration_minutes(),
-        "session_minutes": session.session_duration_minutes(),
+        "mode_minutes": session.active_mode_minutes(),
+        "session_minutes": session.active_session_minutes(),
         "interactions": session.interaction_count,
         "switches": len(session.transitions),
         "last_nudge_at": session.last_nudge_at,

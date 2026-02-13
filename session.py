@@ -7,10 +7,33 @@ from pathlib import Path
 from typing import Optional
 import uuid
 
+import config
 from modes import get_friction, get_friction_message, default_mode, validate_mode, get_mode
 
 HISTORY_DIR = Path.home() / ".vibe-harness"
 HISTORY_FILE = HISTORY_DIR / "mode-history.jsonl"
+
+# Export schema version — tracks the JSON export format independently of the
+# package version. Bump when adding/removing/renaming fields in to_export_dict().
+EXPORT_SCHEMA_VERSION = "0.3.0"
+
+
+@dataclass
+class IdleGap:
+    """A detected period of inactivity between tool calls."""
+    start: datetime
+    end: datetime
+
+    @property
+    def duration_seconds(self) -> float:
+        return (self.end - self.start).total_seconds()
+
+    def to_dict(self) -> dict:
+        return {
+            "start": self.start.isoformat(),
+            "end": self.end.isoformat(),
+            "duration_minutes": round(self.duration_seconds / 60, 1),
+        }
 
 
 @dataclass
@@ -51,13 +74,29 @@ class VibeSession:
     # Tracks interaction count at last mode switch for per-mode counting
     _interactions_at_last_switch: int = field(default=0, repr=False)
 
+    # Activity tracking for idle gap detection
+    last_interaction_at: Optional[datetime] = field(default=None, repr=False)
+    _idle_gaps: list[IdleGap] = field(default_factory=list, repr=False)
+
     # High-friction confirmation state
     _pending_mode: Optional[str] = field(default=None, repr=False)
     _pending_friction: Optional[str] = field(default=None, repr=False)
     _onboarding_shown: bool = field(default=False, repr=False)
 
     def record_interaction(self) -> None:
-        """Increment interaction counter. Call on every tool invocation."""
+        """Increment interaction counter and detect idle gaps.
+
+        Call on every tool invocation. If the gap since the last interaction
+        exceeds the idle threshold, records an IdleGap so active duration
+        calculations can subtract idle time.
+        """
+        now = datetime.now(timezone.utc)
+        if self.last_interaction_at is not None:
+            gap_seconds = (now - self.last_interaction_at).total_seconds()
+            threshold_minutes = config.get("activity.idle_threshold_minutes")
+            if gap_seconds >= threshold_minutes * 60:
+                self._idle_gaps.append(IdleGap(start=self.last_interaction_at, end=now))
+        self.last_interaction_at = now
         self.interaction_count += 1
 
     def record_governance_evaluation(self, evaluations: list[dict]) -> None:
@@ -197,50 +236,99 @@ class VibeSession:
         delta = datetime.now(timezone.utc) - self.started_at
         return delta.total_seconds() / 60
 
+    def _total_idle_seconds(self, since: datetime) -> float:
+        """Sum idle gap durations that fall after `since`.
+
+        Handles gaps that straddle the `since` boundary by only counting
+        the portion after `since`.
+        """
+        total = 0.0
+        for gap in self._idle_gaps:
+            if gap.end <= since:
+                continue
+            effective_start = max(gap.start, since)
+            total += (gap.end - effective_start).total_seconds()
+        return total
+
+    def active_session_minutes(self) -> float:
+        """Session duration minus idle time."""
+        elapsed = self.session_duration_minutes()
+        idle = self._total_idle_seconds(self.started_at) / 60
+        return max(0.0, elapsed - idle)
+
+    def active_mode_minutes(self) -> float:
+        """Current mode duration minus idle time since mode started."""
+        elapsed = self.mode_duration_minutes()
+        idle = self._total_idle_seconds(self.mode_since) / 60
+        return max(0.0, elapsed - idle)
+
+    def total_idle_minutes(self) -> float:
+        """Total idle time detected across the session."""
+        return self._total_idle_seconds(self.started_at) / 60
+
     def interactions_since_last_switch(self) -> int:
         """Interactions since last mode transition."""
         return self.interaction_count - self._interactions_at_last_switch
 
     def time_in_mode_summary(self) -> dict[str, float]:
-        """Calculate time spent in each mode during this session."""
+        """Calculate active time spent in each mode during this session.
+
+        Subtracts idle gaps from each mode's time allocation so the summary
+        reflects active time, not wall-clock time.
+        """
         summary: dict[str, float] = {}
         now = datetime.now(timezone.utc)
 
         if not self.transitions:
             mode = self.mode
-            minutes = (now - self.started_at).total_seconds() / 60
-            summary[mode] = round(minutes, 1)
+            elapsed = (now - self.started_at).total_seconds() / 60
+            idle = self._total_idle_seconds(self.started_at) / 60
+            summary[mode] = round(max(0.0, elapsed - idle), 1)
             return summary
+
+        # Build list of (mode, start, end) spans
+        spans: list[tuple[str, datetime, datetime]] = []
 
         # Time from session start to first transition
         first = self.transitions[0]
-        start_minutes = (first.timestamp - self.started_at).total_seconds() / 60
-        initial_mode = first.from_mode
-        summary[initial_mode] = summary.get(initial_mode, 0) + start_minutes
+        spans.append((first.from_mode, self.started_at, first.timestamp))
 
         # Time between transitions
         for i, t in enumerate(self.transitions):
-            if i + 1 < len(self.transitions):
-                end = self.transitions[i + 1].timestamp
-            else:
-                end = now
-            minutes = (end - t.timestamp).total_seconds() / 60
-            summary[t.to_mode] = summary.get(t.to_mode, 0) + minutes
+            end = self.transitions[i + 1].timestamp if i + 1 < len(self.transitions) else now
+            spans.append((t.to_mode, t.timestamp, end))
+
+        # Accumulate active time per mode
+        for mode, span_start, span_end in spans:
+            elapsed = (span_end - span_start).total_seconds() / 60
+            idle = self._total_idle_seconds(span_start) / 60
+            # Only count idle time within this span
+            idle_in_span = 0.0
+            for gap in self._idle_gaps:
+                if gap.end <= span_start or gap.start >= span_end:
+                    continue
+                effective_start = max(gap.start, span_start)
+                effective_end = min(gap.end, span_end)
+                idle_in_span += (effective_end - effective_start).total_seconds() / 60
+            active = max(0.0, elapsed - idle_in_span)
+            summary[mode] = summary.get(mode, 0) + active
 
         return {k: round(v, 1) for k, v in summary.items()}
 
     def to_export_dict(self) -> dict:
         """Full session data for JSON export."""
         return {
-            "schema_version": "0.2.0",
+            "schema_version": EXPORT_SCHEMA_VERSION,
             "session_id": self.session_id,
             "started_at": self.started_at.isoformat(),
             "exported_at": datetime.now(timezone.utc).isoformat(),
             "duration_minutes": round(self.session_duration_minutes(), 1),
+            "active_duration_minutes": round(self.active_session_minutes(), 1),
             "current_mode": self.mode,
             "interaction_count": self.interaction_count,
             "nudges_surfaced": self.nudges_surfaced,
             "transitions": [t.to_dict() for t in self.transitions],
+            "idle_gaps": [g.to_dict() for g in self._idle_gaps],
             "time_in_mode": self.time_in_mode_summary(),
             "governance_trace": self.governance_trace,
         }
