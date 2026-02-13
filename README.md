@@ -1,9 +1,9 @@
 # Vibe Harness MCP
 
 ![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
-![Version](https://img.shields.io/badge/VERSION-0.2.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
+![Version](https://img.shields.io/badge/VERSION-0.3.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
-![Tests](https://img.shields.io/badge/TESTS-94_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
+![Tests](https://img.shields.io/badge/TESTS-116_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
 ![MCP](https://img.shields.io/badge/MCP-stdio-purple?style=for-the-badge&labelColor=7c3aed&color=5b21b6)
 
 An MCP server that tunes human-AI interaction rhythm based on working modes.
@@ -59,10 +59,12 @@ cp -r /path/to/vibe-harness-mcp/skills/* /your/project/.claude/skills/
 
 Pull-only — nudges surface when you call `vibe_check()` or `vibe_nudge()`. Never proactively injected.
 
+**Active time, not wall-clock time.** The governor tracks when you actually interact with the tool. If your terminal stays open overnight or you go for a walk, idle gaps (30+ min between tool calls) are detected and subtracted. A 10-hour session where you were active for 45 minutes produces no false nudges. `vibe_check()` shows detected away time so you can see what the governor sees.
+
 Rules (in priority order):
 1. **Cooldown** — max one nudge per 15min
-2. **Session duration** — after 120min, suggest cool-off
-3. **Mode duration** — after 45min in one mode, mode-specific check-in
+2. **Session duration** — after 120min active, suggest cool-off
+3. **Mode duration** — after 45min active in one mode, mode-specific check-in
 4. **Mode drift** — e.g. explore with high interactions → "might be building without naming it"
 5. **Interaction count** — 100+ actions without a mode switch → check in
 
@@ -104,14 +106,15 @@ Three-layer resolution: `defaults < ~/.vibe-harness/config.json < .vibe-harness.
   "nudges.interaction_threshold": 100,
   "nudges.cooldown_minutes": 15,
   "friction.enabled": true,
-  "export.auto_export": false
+  "export.auto_export": false,
+  "activity.idle_threshold_minutes": 30
 }
 ```
 
 ## Persistence
 
 - **Mode history**: `~/.vibe-harness/mode-history.jsonl` (append-only, every transition)
-- **Session exports**: `~/.vibe-harness/sessions/*.json` (on-demand via `vibe_session_export()`)
+- **Session exports**: `~/.vibe-harness/sessions/*.json` (on-demand via `vibe_session_export()` — includes wall-clock and active durations, idle gaps, governance trace)
 - **Config**: `~/.vibe-harness/config.json` (user-level) or `.vibe-harness.json` (project-level)
 
 ## Layers
