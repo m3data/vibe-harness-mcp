@@ -118,78 +118,74 @@ def format_nudge_output(nudge: Optional[str]) -> str:
     return f"Nudge: {nudge}"
 
 
-# -- Onboarding ---
+# -- Onboarding ceremony ---
 
 
-def format_onboarding(temporal: Optional[dict] = None) -> str:
-    """First-run onboarding — phased structure for AI-mediated delivery.
+def format_ceremony_phase1(temporal: Optional[dict] = None) -> str:
+    """Phase 1 of the onboarding ceremony — somatic notice.
 
-    Returns sections with embedded AI directives. The AI assistant should
-    present these one at a time, pausing between sections rather than
-    dumping everything at once.
+    Returns only the body-awareness prompt plus an AI directive to pause
+    and wait for the human's response. Normal tool output is withheld.
     """
-    sections = []
+    lines = [
+        "Before we begin — notice how your body feels right now.",
+        "",
+        "Shoulders. Jaw. Breath. The weight of your hands.",
+        "",
+        "Just notice. No need to change anything.",
+    ]
 
-    # 1. Somatic check
-    sections.append(
-        "## Welcome to Vibe Harness\n\n"
-        "Before anything else: notice how your body feels right now.\n"
-        "Shoulders. Jaw. Breath. Just notice — no need to change anything.\n\n"
-        "[FOR THE AI: Pause here. Let the human sit with this for a moment. "
-        "Don't rush to the next section. If they respond, acknowledge what they share "
-        "before continuing.]"
-    )
-
-    # 2. Time-of-day context (if available)
+    # Late-night / early-morning temporal insert
     if temporal:
         is_late = temporal.get("is_late", False)
         period = temporal.get("period", "")
         hour = temporal.get("hour", 0)
         if period == "early_morning" and is_late:
-            sections.append(
-                f"Early morning ({hour:02d}:00). Fresh start energy — or residual from last night? "
-                "Only your body knows.\n\n"
-                "[FOR THE AI: Light touch. Don't labour this point.]"
-            )
+            lines.extend([
+                "",
+                f"Early morning ({hour:02d}:00). Fresh start energy — or residual "
+                "from last night? Only your body knows.",
+            ])
         elif is_late:
-            sections.append(
+            lines.extend([
+                "",
                 f"It's {hour:02d}:00. Late hours can feel productive, but your body "
-                "has circadian preferences. Worth noting as you begin.\n\n"
-                "[FOR THE AI: This is not a judgment. Just a data point. "
-                "If they want to continue, that's their call.]"
-            )
+                "has circadian preferences. Worth noting as you begin.",
+            ])
 
-    # 3. How this works
-    sections.append(
-        "## How this works\n\n"
-        "Vibe Harness adjusts AI behaviour to match your working state. "
-        "Everything is pull-only — nothing interrupts, nothing monitors you in the background. "
-        "You set the tempo.\n\n"
-        "Check in when you want to (`vibe_check`). "
-        "Ask for a nudge when you want one (`vibe_nudge`). "
-        "Switch modes when your energy shifts (`vibe_set_mode`)."
-    )
+    lines.extend([
+        "",
+        "[FOR THE AI: This is a somatic grounding moment. Present this text to the "
+        "human and wait for their response. Do not explain what Vibe Harness is yet. "
+        "Do not rush past this. If they respond with what they notice, acknowledge it "
+        "briefly. Then call any vibe tool again to continue.]",
+    ])
 
-    # 4. Mode selection
-    sections.append(
-        "## Five modes\n\n"
-        "  **Explore**     Open, divergent, follow threads\n"
-        "  **Build**       Concise, code-first, action-biased\n"
-        "  **Think-With**  Reflective, holds complexity\n"
-        "  **Ship**        Decisive, catches scope creep\n"
-        "  **Cool-Off**    Minimal output, wind-down\n\n"
-        "[FOR THE AI: Ask the human which mode matches where they are right now. "
-        "Don't pick for them. If they're unsure, suggest Explore as a starting point.]"
-    )
+    return "\n".join(lines)
 
-    # 5. You're set
-    sections.append(
-        "That's it. No setup, no configuration required.\n\n"
-        "The governor will offer gentle check-ins based on time and activity — "
-        "but only when you ask. Your body's signals come first, the tool's signals second."
-    )
 
-    return "\n\n---\n\n".join(sections)
+def format_ceremony_phase2() -> str:
+    """Phase 2 of the onboarding ceremony — orientation + mode pick.
+
+    Returns how-it-works explanation, the five modes, and an AI directive
+    to ask the human to choose. Normal tool output follows after mode is set.
+    """
+    return "\n".join([
+        "Vibe Harness adjusts AI behaviour to match your working state. Everything",
+        "is pull-only — nothing interrupts, nothing monitors in the background.",
+        "",
+        "Five modes:",
+        "",
+        "  Explore      Open, divergent, follow threads",
+        "  Build        Concise, code-first, action-biased",
+        "  Think-With   Reflective, holds complexity",
+        "  Ship         Decisive, catches scope creep",
+        "  Cool-Off     Minimal output, wind-down",
+        "",
+        "[FOR THE AI: Ask the human which mode fits where they are right now. "
+        "Don't pick for them. If they're unsure, suggest Explore. Once they choose, "
+        "call vibe_set_mode with their choice. That completes the ceremony.]",
+    ])
 
 
 def format_governance_trace(evaluations: list[dict]) -> str:

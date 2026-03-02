@@ -11,6 +11,29 @@ it changes.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-03
+
+Active onboarding ceremony. First-time users get a two-phase welcome that
+respects the soma: body notice first, orientation second. Fires on any
+vibe tool call, not just `vibe_check()`.
+
+### Changed
+- **Active onboarding ceremony**: replaces passive `format_onboarding()` dump with two-phase ceremony
+  - Phase 1: somatic notice — "notice how your body feels" + AI directive to pause and wait
+  - Phase 2: orientation + mode pick — how it works, five modes, AI directive to ask for choice
+  - Ceremony intercepts **all** tool calls (not just `vibe_check`), guaranteeing it fires on first use
+  - Normal tool output withheld during ceremony phases
+  - Mode switch from human's choice completes the ceremony
+- Gating unchanged: ceremony only fires when `mode-history.jsonl` doesn't exist (first-ever use)
+- `VibeSession._onboarding_shown` replaced with `_ceremony_phase` (0 / 1 / None state machine)
+- `format_onboarding()` replaced with `format_ceremony_phase1()` and `format_ceremony_phase2()`
+- `_get_onboarding_message()` replaced with `_check_ceremony()` in server
+
+### Added
+- `VibeSession.ceremony_active()` and `advance_ceremony()` helper methods
+- `tests/test_ceremony_integration.py` — full flow integration tests
+- New formatter and session tests for ceremony phases
+
 ## [0.4.0] - 2026-03-03
 
 Installable package, temporal awareness, and phased onboarding. The one-liner
@@ -102,7 +125,8 @@ Initial release. Layer 1: manual mode switching with research-informed presets.
 - Onboarding message for first-time users
 - 73 unit tests
 
-[Unreleased]: https://github.com/m3data/vibe-harness-mcp/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/m3data/vibe-harness-mcp/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/m3data/vibe-harness-mcp/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/m3data/vibe-harness-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/m3data/vibe-harness-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/m3data/vibe-harness-mcp/compare/v0.1.0...v0.2.0

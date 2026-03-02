@@ -8,7 +8,8 @@ from vibe_harness_mcp.formatters import (
     format_status_line,
     format_history,
     format_nudge_output,
-    format_onboarding,
+    format_ceremony_phase1,
+    format_ceremony_phase2,
 )
 from vibe_harness_mcp.session import VibeSession
 
@@ -144,20 +145,26 @@ class TestFormatNudgeOutput:
         assert "Nudge: Time to rest" in output
 
 
-class TestFormatOnboarding:
-    def test_basic_onboarding(self):
-        output = format_onboarding()
-        assert "Welcome to Vibe Harness" in output
+class TestFormatCeremonyPhase1:
+    def test_somatic_content(self):
+        output = format_ceremony_phase1()
         assert "notice how your body feels" in output
-        assert "Explore" in output
-        assert "Build" in output
-        assert "Think-With" in output
-        assert "Ship" in output
-        assert "Cool-Off" in output
-        assert "FOR THE AI" in output
-        assert "pull-only" in output
+        assert "Shoulders" in output
+        assert "Jaw" in output
+        assert "Breath" in output
 
-    def test_onboarding_with_late_night(self):
+    def test_ai_directive(self):
+        output = format_ceremony_phase1()
+        assert "FOR THE AI" in output
+        assert "somatic grounding" in output
+        assert "Do not explain what Vibe Harness is yet" in output
+
+    def test_no_mode_list(self):
+        output = format_ceremony_phase1()
+        assert "Five modes" not in output
+        assert "pull-only" not in output
+
+    def test_late_night_temporal(self):
         temporal = {
             "hour": 23,
             "minute": 30,
@@ -166,11 +173,11 @@ class TestFormatOnboarding:
             "sessions_today": {"count": 0, "total_minutes": 0},
             "sessions_this_week": {"count": 0, "dominant_mode": None, "mode_distribution": {}},
         }
-        output = format_onboarding(temporal=temporal)
+        output = format_ceremony_phase1(temporal=temporal)
         assert "23:00" in output
         assert "circadian" in output
 
-    def test_onboarding_with_early_morning(self):
+    def test_early_morning_temporal(self):
         temporal = {
             "hour": 4,
             "minute": 0,
@@ -179,10 +186,10 @@ class TestFormatOnboarding:
             "sessions_today": {"count": 0, "total_minutes": 0},
             "sessions_this_week": {"count": 0, "dominant_mode": None, "mode_distribution": {}},
         }
-        output = format_onboarding(temporal=temporal)
+        output = format_ceremony_phase1(temporal=temporal)
         assert "Early morning" in output
 
-    def test_onboarding_daytime_no_time_warning(self):
+    def test_daytime_no_time_warning(self):
         temporal = {
             "hour": 10,
             "minute": 0,
@@ -191,6 +198,32 @@ class TestFormatOnboarding:
             "sessions_today": {"count": 0, "total_minutes": 0},
             "sessions_this_week": {"count": 0, "dominant_mode": None, "mode_distribution": {}},
         }
-        output = format_onboarding(temporal=temporal)
+        output = format_ceremony_phase1(temporal=temporal)
         assert "circadian" not in output
         assert "Early morning" not in output
+
+
+class TestFormatCeremonyPhase2:
+    def test_orientation_content(self):
+        output = format_ceremony_phase2()
+        assert "pull-only" in output
+        assert "Vibe Harness" in output
+
+    def test_mode_list(self):
+        output = format_ceremony_phase2()
+        assert "Explore" in output
+        assert "Build" in output
+        assert "Think-With" in output
+        assert "Ship" in output
+        assert "Cool-Off" in output
+
+    def test_ai_directive(self):
+        output = format_ceremony_phase2()
+        assert "FOR THE AI" in output
+        assert "Ask the human which mode" in output
+        assert "vibe_set_mode" in output
+
+    def test_no_somatic_content(self):
+        output = format_ceremony_phase2()
+        assert "Shoulders" not in output
+        assert "Jaw" not in output

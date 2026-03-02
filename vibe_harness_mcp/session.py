@@ -81,7 +81,30 @@ class VibeSession:
     # High-friction confirmation state
     _pending_mode: Optional[str] = field(default=None, repr=False)
     _pending_friction: Optional[str] = field(default=None, repr=False)
-    _onboarding_shown: bool = field(default=False, repr=False)
+    # Onboarding ceremony state:
+    # 0 = not started (first-use user), 1 = phase 1 delivered, None = complete/not needed
+    _ceremony_phase: Optional[int] = field(default=0, repr=False)
+
+    def ceremony_active(self) -> bool:
+        """True if the onboarding ceremony is in progress (phase 0 or 1)."""
+        return self._ceremony_phase is not None
+
+    def advance_ceremony(self) -> Optional[int]:
+        """Advance ceremony state and return the phase that was just completed.
+
+        Returns the phase number (0 or 1) that should be displayed,
+        or None if ceremony is already complete.
+        """
+        current = self._ceremony_phase
+        if current is None:
+            return None
+        if current == 0:
+            self._ceremony_phase = 1
+            return 0
+        if current == 1:
+            self._ceremony_phase = None
+            return 1
+        return None
 
     def record_interaction(self) -> None:
         """Increment interaction counter and detect idle gaps.

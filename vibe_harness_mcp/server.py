@@ -16,7 +16,7 @@ from mcp.server.fastmcp import FastMCP
 from vibe_harness_mcp._version import __version__
 from vibe_harness_mcp.session import VibeSession
 from vibe_harness_mcp.modes import valid_modes, get_mode
-from vibe_harness_mcp.formatters import format_mode_switch, format_vibe_check, format_status_line, format_history, format_nudge_output, format_onboarding
+from vibe_harness_mcp.formatters import format_mode_switch, format_vibe_check, format_status_line, format_history, format_nudge_output, format_ceremony_phase1, format_ceremony_phase2
 from vibe_harness_mcp.governor import evaluate_rules
 from vibe_harness_mcp.session import HISTORY_FILE
 from vibe_harness_mcp.temporal import get_temporal_context
@@ -31,13 +31,23 @@ _session = VibeSession()
 EXPORT_DIR = Path.home() / ".vibe-harness" / "sessions"
 
 
-def _get_onboarding_message():
-    """Return onboarding text on first run (no history file), or None."""
-    if _session._onboarding_shown or HISTORY_FILE.exists():
+def _check_ceremony() -> str | None:
+    """Check and advance the onboarding ceremony. Returns text to show instead
+    of normal tool output, or None if ceremony is complete/not needed."""
+    # Returning user — history file exists, skip ceremony entirely
+    if HISTORY_FILE.exists():
+        _session._ceremony_phase = None
         return None
-    _session._onboarding_shown = True
-    temporal = get_temporal_context()
-    return format_onboarding(temporal=temporal)
+
+    phase = _session.advance_ceremony()
+    if phase is None:
+        return None
+    if phase == 0:
+        temporal = get_temporal_context()
+        return format_ceremony_phase1(temporal=temporal)
+    if phase == 1:
+        return format_ceremony_phase2()
+    return None
 
 # ---------------------------------------------------------------------------
 # MCP Server
@@ -62,6 +72,9 @@ def vibe_set_mode(mode: str) -> str:
         mode: The mode to switch to.
     """
     _session.record_interaction()
+    ceremony = _check_ceremony()
+    if ceremony:
+        return ceremony
     result = _session.set_mode(mode)
     return format_mode_switch(result)
 
@@ -73,6 +86,9 @@ def vibe_check() -> str:
     Call this to understand the human's current working context.
     """
     _session.record_interaction()
+    ceremony = _check_ceremony()
+    if ceremony:
+        return ceremony
     nudge, evaluations = evaluate_rules(_session)
     if nudge:
         _session.nudges_surfaced += 1
@@ -80,12 +96,8 @@ def vibe_check() -> str:
     _session.record_governance_evaluation(
         [e.to_dict() for e in evaluations]
     )
-    onboarding = _get_onboarding_message()
     temporal = get_temporal_context()
-    output = format_vibe_check(_session, nudge=nudge, temporal=temporal)
-    if onboarding:
-        output = onboarding + "\n\n---\n\n" + output
-    return output
+    return format_vibe_check(_session, nudge=nudge, temporal=temporal)
 
 
 @mcp.tool()
@@ -94,6 +106,9 @@ def vibe_nudge() -> str:
     a suggestion (e.g. take a break, switch modes) or 'all clear'.
     """
     _session.record_interaction()
+    ceremony = _check_ceremony()
+    if ceremony:
+        return ceremony
     nudge, evaluations = evaluate_rules(_session)
     if nudge:
         _session.nudges_surfaced += 1
@@ -108,6 +123,9 @@ def vibe_nudge() -> str:
 def vibe_history() -> str:
     """Mode transition timeline + time-in-mode summary for current session."""
     _session.record_interaction()
+    ceremony = _check_ceremony()
+    if ceremony:
+        return ceremony
     return format_history(_session)
 
 
@@ -118,6 +136,9 @@ def vibe_session_export() -> str:
     Returns file path + summary.
     """
     _session.record_interaction()
+    ceremony = _check_ceremony()
+    if ceremony:
+        return ceremony
 
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -159,6 +180,9 @@ def vibe_configure(setting: str, value: str) -> str:
         value: The new value (will be coerced to appropriate type).
     """
     _session.record_interaction()
+    ceremony = _check_ceremony()
+    if ceremony:
+        return ceremony
     success, message = config.set_runtime(setting, value)
     if success:
         return f"Updated: {message}"

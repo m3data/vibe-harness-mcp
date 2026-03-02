@@ -8,3 +8,5 @@ CLAUDE.md
 dist/
 build/
 .pytest_cache/
+
+research/

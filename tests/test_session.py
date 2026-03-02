@@ -204,9 +204,46 @@ class TestGovernanceTrace:
         data = s.to_export_dict()
         assert len(data["governance_trace"]) == 1
 
-    def test_onboarding_shown_default_false(self):
+    def test_ceremony_phase_default_zero(self):
         s = VibeSession()
-        assert s._onboarding_shown is False
+        assert s._ceremony_phase == 0
+
+
+class TestCeremonyState:
+    def test_initial_phase_is_zero(self):
+        s = VibeSession()
+        assert s._ceremony_phase == 0
+        assert s.ceremony_active() is True
+
+    def test_advance_from_zero_to_one(self):
+        s = VibeSession()
+        phase = s.advance_ceremony()
+        assert phase == 0
+        assert s._ceremony_phase == 1
+        assert s.ceremony_active() is True
+
+    def test_advance_from_one_to_none(self):
+        s = VibeSession()
+        s.advance_ceremony()  # 0 -> 1
+        phase = s.advance_ceremony()  # 1 -> None
+        assert phase == 1
+        assert s._ceremony_phase is None
+        assert s.ceremony_active() is False
+
+    def test_advance_past_none_returns_none(self):
+        s = VibeSession()
+        s.advance_ceremony()  # 0 -> 1
+        s.advance_ceremony()  # 1 -> None
+        phase = s.advance_ceremony()  # None -> None
+        assert phase is None
+        assert s._ceremony_phase is None
+
+    def test_ceremony_not_needed(self):
+        """When phase is set to None (returning user), ceremony is inactive."""
+        s = VibeSession()
+        s._ceremony_phase = None
+        assert s.ceremony_active() is False
+        assert s.advance_ceremony() is None
 
 
 class TestJSONLLogging:
