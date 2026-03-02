@@ -13,13 +13,14 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from _version import __version__
-from session import VibeSession
-from modes import valid_modes, get_mode
-from formatters import format_mode_switch, format_vibe_check, format_status_line, format_history, format_nudge_output, format_onboarding
-from governor import evaluate_rules
-from session import HISTORY_FILE
-import config
+from vibe_harness_mcp._version import __version__
+from vibe_harness_mcp.session import VibeSession
+from vibe_harness_mcp.modes import valid_modes, get_mode
+from vibe_harness_mcp.formatters import format_mode_switch, format_vibe_check, format_status_line, format_history, format_nudge_output, format_onboarding
+from vibe_harness_mcp.governor import evaluate_rules
+from vibe_harness_mcp.session import HISTORY_FILE
+from vibe_harness_mcp.temporal import get_temporal_context
+from vibe_harness_mcp import config
 
 # ---------------------------------------------------------------------------
 # Session (single instance per MCP process)
@@ -35,7 +36,8 @@ def _get_onboarding_message():
     if _session._onboarding_shown or HISTORY_FILE.exists():
         return None
     _session._onboarding_shown = True
-    return format_onboarding()
+    temporal = get_temporal_context()
+    return format_onboarding(temporal=temporal)
 
 # ---------------------------------------------------------------------------
 # MCP Server
@@ -79,7 +81,8 @@ def vibe_check() -> str:
         [e.to_dict() for e in evaluations]
     )
     onboarding = _get_onboarding_message()
-    output = format_vibe_check(_session, nudge=nudge)
+    temporal = get_temporal_context()
+    output = format_vibe_check(_session, nudge=nudge, temporal=temporal)
     if onboarding:
         output = onboarding + "\n\n---\n\n" + output
     return output
@@ -148,6 +151,8 @@ def vibe_configure(setting: str, value: str) -> str:
     - nudges.cooldown_minutes (default: 15)
     - friction.enabled (default: true)
     - export.auto_export (default: false)
+    - temporal.late_night_start (default: 22)
+    - temporal.late_night_end (default: 6)
 
     Args:
         setting: The config key to change.
@@ -180,11 +185,3 @@ def vibe_context() -> str:
 def vibe_status() -> str:
     """One-line session status."""
     return format_status_line(_session)
-
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    mcp.run(transport="stdio")

@@ -1,11 +1,6 @@
 """Tests for modes.py — mode definitions, validation, friction."""
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from modes import valid_modes, validate_mode, get_mode, get_friction, get_friction_message, default_mode
+from vibe_harness_mcp.modes import valid_modes, validate_mode, get_mode, get_friction, get_friction_message, default_mode
 
 
 class TestModeDefinitions:

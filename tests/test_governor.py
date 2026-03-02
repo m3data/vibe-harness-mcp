@@ -1,15 +1,10 @@
 """Tests for governor.py — nudge evaluation logic."""
 
-import importlib
-import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import config
-from governor import evaluate_nudge, evaluate_rules, format_nudge_or_clear, RULES, GovernanceRule, RuleEvaluation
-from session import VibeSession, IdleGap
+from vibe_harness_mcp import config
+from vibe_harness_mcp.governor import evaluate_nudge, evaluate_rules, format_nudge_or_clear, RULES, GovernanceRule, RuleEvaluation
+from vibe_harness_mcp.session import VibeSession, IdleGap
 
 
 def _fresh_config():
@@ -199,8 +194,8 @@ class TestPriorityOrder:
 class TestRuleStructure:
     """Verify rules are well-formed data objects."""
 
-    def test_five_rules_defined(self):
-        assert len(RULES) == 5
+    def test_six_rules_defined(self):
+        assert len(RULES) == 6
 
     def test_rules_have_unique_names(self):
         names = [r.name for r in RULES]
@@ -247,7 +242,7 @@ class TestGovernanceTrace:
     def test_trace_has_all_rules(self):
         s = VibeSession()
         _, trace = evaluate_rules(s)
-        assert len(trace) == 5
+        assert len(trace) == 6
 
     def test_trace_records_fired_rule(self):
         s = VibeSession()

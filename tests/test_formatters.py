@@ -1,19 +1,16 @@
 """Tests for formatters.py — output formatting for MCP tools."""
 
-import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from formatters import (
+from vibe_harness_mcp.formatters import (
     format_mode_switch,
     format_vibe_check,
     format_status_line,
     format_history,
     format_nudge_output,
+    format_onboarding,
 )
-from session import VibeSession
+from vibe_harness_mcp.session import VibeSession
 
 
 class TestFormatModeSwitch:
@@ -87,6 +84,22 @@ class TestFormatVibeCheck:
         assert "pending" in output
         assert "ship" in output
 
+    def test_with_temporal_context(self):
+        s = VibeSession()
+        temporal = {
+            "hour": 14,
+            "minute": 30,
+            "period": "afternoon",
+            "is_late": False,
+            "sessions_today": {"count": 2, "total_minutes": 90.0},
+            "sessions_this_week": {"count": 5, "dominant_mode": "build", "mode_distribution": {}},
+        }
+        output = format_vibe_check(s, temporal=temporal)
+        assert "14:30" in output
+        assert "afternoon" in output
+        assert "session #2" in output
+        assert "~90min" in output
+
 
 class TestFormatStatusLine:
     def test_contains_mode_and_stats(self):
@@ -129,3 +142,55 @@ class TestFormatNudgeOutput:
     def test_with_nudge(self):
         output = format_nudge_output("Time to rest")
         assert "Nudge: Time to rest" in output
+
+
+class TestFormatOnboarding:
+    def test_basic_onboarding(self):
+        output = format_onboarding()
+        assert "Welcome to Vibe Harness" in output
+        assert "notice how your body feels" in output
+        assert "Explore" in output
+        assert "Build" in output
+        assert "Think-With" in output
+        assert "Ship" in output
+        assert "Cool-Off" in output
+        assert "FOR THE AI" in output
+        assert "pull-only" in output
+
+    def test_onboarding_with_late_night(self):
+        temporal = {
+            "hour": 23,
+            "minute": 30,
+            "period": "late_night",
+            "is_late": True,
+            "sessions_today": {"count": 0, "total_minutes": 0},
+            "sessions_this_week": {"count": 0, "dominant_mode": None, "mode_distribution": {}},
+        }
+        output = format_onboarding(temporal=temporal)
+        assert "23:00" in output
+        assert "circadian" in output
+
+    def test_onboarding_with_early_morning(self):
+        temporal = {
+            "hour": 4,
+            "minute": 0,
+            "period": "early_morning",
+            "is_late": True,
+            "sessions_today": {"count": 0, "total_minutes": 0},
+            "sessions_this_week": {"count": 0, "dominant_mode": None, "mode_distribution": {}},
+        }
+        output = format_onboarding(temporal=temporal)
+        assert "Early morning" in output
+
+    def test_onboarding_daytime_no_time_warning(self):
+        temporal = {
+            "hour": 10,
+            "minute": 0,
+            "period": "morning",
+            "is_late": False,
+            "sessions_today": {"count": 0, "total_minutes": 0},
+            "sessions_this_week": {"count": 0, "dominant_mode": None, "mode_distribution": {}},
+        }
+        output = format_onboarding(temporal=temporal)
+        assert "circadian" not in output
+        assert "Early morning" not in output

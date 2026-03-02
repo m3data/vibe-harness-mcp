@@ -16,6 +16,7 @@ Rule priority (highest first):
 3. Mode duration — stuck in one mode
 4. Mode drift — behaviour doesn't match declared mode
 5. Interaction count — high activity without mode reflection
+6. Late night — working outside circadian-friendly hours
 
 All thresholds pulled from config.get() so runtime overrides work.
 """
@@ -24,7 +25,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable, Optional
 
-import config
+from vibe_harness_mcp import config
+from vibe_harness_mcp.temporal import get_temporal_context
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +76,7 @@ class RuleEvaluation:
 
 def _build_session_state(session) -> dict:
     now = datetime.now(timezone.utc)
+    temporal = get_temporal_context()
     return {
         "mode": session.mode,
         "mode_minutes": session.active_mode_minutes(),
@@ -82,6 +85,8 @@ def _build_session_state(session) -> dict:
         "switches": len(session.transitions),
         "last_nudge_at": session.last_nudge_at,
         "now": now,
+        # Temporal context
+        "temporal": temporal,
         # Thresholds from config
         "cooldown_minutes": config.get("nudges.cooldown_minutes"),
         "session_max_minutes": config.get("nudges.session_max_minutes"),
@@ -126,6 +131,13 @@ def _too_many_interactions(state: dict) -> bool:
         state["interactions"] >= state["interaction_threshold"]
         and state["switches"] == 0
     )
+
+
+def _is_late_night(state: dict) -> bool:
+    temporal = state.get("temporal")
+    if temporal is None:
+        return False
+    return temporal.get("is_late", False)
 
 
 # ---------------------------------------------------------------------------
@@ -180,6 +192,21 @@ def _too_many_interactions_msg(state: dict) -> str:
     )
 
 
+def _late_night_msg(state: dict) -> str:
+    temporal = state.get("temporal", {})
+    hour = temporal.get("hour", 0)
+    period = temporal.get("period", "late_night")
+    if period == "early_morning":
+        return (
+            f"It's {hour:02d}:00. Your body has circadian preferences. "
+            "Early morning can feel productive, but check whether you're running on adrenaline or genuine energy."
+        )
+    return (
+        f"It's {hour:02d}:00. Your body has circadian preferences. "
+        "Is this intentional, or are you caught in a loop?"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Rules registry
 # ---------------------------------------------------------------------------
@@ -228,6 +255,20 @@ RULES: list[GovernanceRule] = [
             "session_duration",
             "mode_duration",
             "mode_drift",
+        ],
+    ),
+    GovernanceRule(
+        name="late_night",
+        priority=6,
+        rule_type="nudge",
+        condition=_is_late_night,
+        message=_late_night_msg,
+        defeated_by=[
+            "cooldown_suppression",
+            "session_duration",
+            "mode_duration",
+            "mode_drift",
+            "interaction_count",
         ],
     ),
 ]

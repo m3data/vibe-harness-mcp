@@ -1,14 +1,10 @@
 """Tests for session.py — VibeSession state management."""
 
 import json
-import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import config
-from session import VibeSession, ModeTransition, IdleGap, HISTORY_FILE, EXPORT_SCHEMA_VERSION
+from vibe_harness_mcp import config
+from vibe_harness_mcp.session import VibeSession, ModeTransition, IdleGap, HISTORY_FILE, EXPORT_SCHEMA_VERSION
 
 
 class TestSessionInit:

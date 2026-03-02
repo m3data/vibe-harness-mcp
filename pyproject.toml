@@ -1,12 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "vibe-harness"
-version = "0.3.0"
+name = "vibe-harness-mcp"
+version = "0.4.0"
 description = "MCP server that tunes human-AI interaction rhythm based on working modes and biosignal data"
 requires-python = ">=3.10"
-license = "ESL-A-0.1"
+license = {text = "Earthian Stewardship License (ESL-A) v0.1"}
 dependencies = [
     "mcp>=1.25.0",
 ]
 
 [project.scripts]
-vibe-harness = "server:main"
+vibe-harness-mcp = "vibe_harness_mcp.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vibe_harness_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

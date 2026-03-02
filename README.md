@@ -1,14 +1,43 @@
 # Vibe Harness MCP
 
 ![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
-![Version](https://img.shields.io/badge/VERSION-0.3.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
+![Version](https://img.shields.io/badge/VERSION-0.4.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
-![Tests](https://img.shields.io/badge/TESTS-116_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
+![Tests](https://img.shields.io/badge/TESTS-141_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
 ![MCP](https://img.shields.io/badge/MCP-stdio-purple?style=for-the-badge&labelColor=7c3aed&color=5b21b6)
 
 An MCP server that tunes human-AI interaction rhythm based on working modes.
 
 Humans are variable and models are adjustable. Most AI tools assume stable humans and optimise model output. Vibe Harness inverts this — it adjusts AI behaviour to match the human's working state.
+
+## Install
+
+One line:
+
+```bash
+claude mcp add vibe-harness -- uvx --from "git+https://github.com/m3data/vibe-harness-mcp.git" vibe-harness-mcp
+```
+
+Or from a local clone:
+
+```bash
+git clone https://github.com/m3data/vibe-harness-mcp.git
+cd vibe-harness-mcp
+pip install -e .
+claude mcp add vibe-harness -- uvx --from . vibe-harness-mcp
+```
+
+Or register manually in `~/.claude.json` under `mcpServers`:
+
+```json
+{
+  "vibe-harness": {
+    "command": "uvx",
+    "args": ["--from", "git+https://github.com/m3data/vibe-harness-mcp.git", "vibe-harness-mcp"],
+    "type": "stdio"
+  }
+}
+```
 
 ## Modes
 
@@ -24,9 +53,9 @@ Humans are variable and models are adjustable. Most AI tools assume stable human
 
 Not all mode switches are equal. Some transitions have friction:
 
-- **None**: Natural progression (explore → build, build → ship)
-- **Medium**: Stepping back — acknowledged but allowed (build → explore)
-- **High**: Big leap — requires calling `vibe_set_mode()` twice to confirm (explore → ship, cool-off → ship)
+- **None**: Natural progression (explore -> build, build -> ship)
+- **Medium**: Stepping back — acknowledged but allowed (build -> explore)
+- **High**: Big leap — requires calling `vibe_set_mode()` twice to confirm (explore -> ship, cool-off -> ship)
 
 Cool-off is always friction-free to enter.
 
@@ -35,7 +64,7 @@ Cool-off is always friction-free to enter.
 | Tool | Purpose |
 |------|---------|
 | `vibe_set_mode(mode)` | Switch working mode |
-| `vibe_check()` | Current state + pending nudges |
+| `vibe_check()` | Current state + clock time + pending nudges |
 | `vibe_nudge()` | Request a contextual suggestion |
 | `vibe_history()` | Mode transition timeline |
 | `vibe_session_export()` | Export session JSON to `~/.vibe-harness/sessions/` |
@@ -55,6 +84,23 @@ To install, copy the skill folders into your project's `.claude/skills/` directo
 cp -r /path/to/vibe-harness-mcp/skills/* /your/project/.claude/skills/
 ```
 
+## Temporal Awareness
+
+Vibe Harness knows what time it is and how your day has gone.
+
+`vibe_check()` now shows:
+- **Clock time** and period (morning, afternoon, evening, late night)
+- **Sessions today** — how many times you've used it and total minutes
+- **Late-night nudge** — gentle circadian check-in when working past 10pm or before 6am
+
+Cross-session patterns are mined from `~/.vibe-harness/mode-history.jsonl` — the same file that already records every mode transition. No new data collection.
+
+Late-night thresholds are configurable:
+```bash
+vibe_configure("temporal.late_night_start", "23")  # default: 22
+vibe_configure("temporal.late_night_end", "5")      # default: 6
+```
+
 ## Governor (Nudge Logic)
 
 Pull-only — nudges surface when you call `vibe_check()` or `vibe_nudge()`. Never proactively injected.
@@ -65,8 +111,9 @@ Rules (in priority order):
 1. **Cooldown** — max one nudge per 15min
 2. **Session duration** — after 120min active, suggest cool-off
 3. **Mode duration** — after 45min active in one mode, mode-specific check-in
-4. **Mode drift** — e.g. explore with high interactions → "might be building without naming it"
-5. **Interaction count** — 100+ actions without a mode switch → check in
+4. **Mode drift** — e.g. explore with high interactions -> "might be building without naming it"
+5. **Interaction count** — 100+ actions without a mode switch -> check in
+6. **Late night** — circadian nudge when working past configured hours
 
 All thresholds configurable via `vibe_configure()` or config files.
 
@@ -92,6 +139,7 @@ This matters for accountability. Silent overrides are invisible governance. Expl
 | 3 | Mode duration | nudge | cooldown, session duration |
 | 4 | Mode drift | drift | cooldown, session duration, mode duration |
 | 5 | Interaction count | nudge | cooldown, session duration, mode duration, mode drift |
+| 6 | Late night | nudge | all higher-priority rules |
 
 Rules are data, not code. Layer 2 (biosignal) and Layer 3 (semantic coupling) will add new rules and defeaters without restructuring existing logic.
 
@@ -107,7 +155,9 @@ Three-layer resolution: `defaults < ~/.vibe-harness/config.json < .vibe-harness.
   "nudges.cooldown_minutes": 15,
   "friction.enabled": true,
   "export.auto_export": false,
-  "activity.idle_threshold_minutes": 30
+  "activity.idle_threshold_minutes": 30,
+  "temporal.late_night_start": 22,
+  "temporal.late_night_end": 6
 }
 ```
 
@@ -119,34 +169,23 @@ Three-layer resolution: `defaults < ~/.vibe-harness/config.json < .vibe-harness.
 
 ## Layers
 
-- **Layer 1** (current): Manual mode switching with research-informed presets
+- **Layer 1** (current): Manual mode switching with research-informed presets + temporal awareness
 - **Layer 2** (designed): Polar H10 BLE integration for biosignal-informed nudges
 - **Layer 3** (future): Full loop — semantic coupling + biosignal + session history patterns
 
-## Setup
+## Setup (Development)
 
 ```bash
+git clone https://github.com/m3data/vibe-harness-mcp.git
 cd vibe-harness-mcp
-pip install -r requirements.txt
-python server.py  # stdio transport for MCP
-```
-
-Register in `~/.claude.json` under `mcpServers`:
-
-```json
-{
-  "vibe-harness-mcp": {
-    "command": "python",
-    "args": ["/path/to/vibe-harness-mcp/server.py"],
-    "type": "stdio"
-  }
-}
+pip install -e .
+python -m vibe_harness_mcp  # stdio transport for MCP
 ```
 
 ## Tests
 
 ```bash
-cd vibe-harness-mcp
+pip install -e ".[dev]"  # or: pip install pytest
 python -m pytest tests/ -v
 ```
 

@@ -17,6 +17,8 @@ DEFAULTS = {
     "friction.enabled": True,
     "export.auto_export": False,
     "activity.idle_threshold_minutes": 30,
+    "temporal.late_night_start": 22,
+    "temporal.late_night_end": 6,
 }
 
 USER_CONFIG = Path.home() / ".vibe-harness" / "config.json"

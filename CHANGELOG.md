@@ -11,6 +11,37 @@ it changes.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-03
+
+Installable package, temporal awareness, and phased onboarding. The one-liner
+install makes Vibe Harness usable by anyone with `uvx` or `pip`.
+
+### Added
+- **Package restructuring**: `vibe_harness_mcp/` proper Python package with `__main__.py` entry point
+- **One-liner install**: `claude mcp add vibe-harness -- uvx --from "git+https://github.com/m3data/vibe-harness-mcp.git" vibe-harness-mcp`
+- **Temporal awareness** (`temporal.py`): clock-time context and cross-session pattern mining from `mode-history.jsonl`
+  - Time-of-day period detection (early_morning, morning, afternoon, evening, late_night)
+  - Sessions today count and total minutes
+  - Sessions this week with dominant mode and mode distribution
+  - Session boundary detection via `session_id` grouping
+- **Late-night governor rule** (priority 6): gentle circadian nudge when working past configurable hours (default 22:00-06:00)
+- **Temporal context in `vibe_check()`**: clock time and session count displayed
+- `temporal.late_night_start` and `temporal.late_night_end` config settings
+- **Phased onboarding**: rewritten `format_onboarding()` with somatic check, time-of-day context, AI-mediated delivery directives (`[FOR THE AI: ...]` blocks)
+- 25 new tests (141 total): temporal module, late-night governor rule, onboarding formatting, temporal vibe_check integration
+
+### Changed
+- Source files moved from root into `vibe_harness_mcp/` package
+- All imports converted to absolute package imports
+- `pyproject.toml` rewritten: hatchling build system, `vibe-harness-mcp` package name, console script entry point
+- Governor now has 6 rules (was 5) — late_night added at priority 6
+- Onboarding now time-aware: different messages for late night vs early morning vs daytime
+- Export schema version: `0.3.0` -> `0.4.0`
+
+### Removed
+- `sys.path.insert` hacks in test files (replaced by proper package imports)
+- Root-level `server.py` entry point replaced by `python -m vibe_harness_mcp`
+
 ## [0.3.0] - 2026-02-13
 
 Activity-aware duration tracking. The governor now distinguishes "terminal open"
@@ -33,7 +64,7 @@ from "human working" by detecting idle gaps between tool calls.
 - Governor evaluates rules against active durations, not raw elapsed time
 - `vibe_check()` and status line display active durations
 - `time_in_mode_summary()` subtracts idle gaps per mode span
-- Export schema version: `0.2.0` → `0.3.0`
+- Export schema version: `0.2.0` -> `0.3.0`
 
 ### Fixed
 - Overnight/idle terminal no longer triggers false "step away" nudge
@@ -53,7 +84,7 @@ Defeasible governance with full accountability trace.
 
 ### Changed
 - Governor architecture: from simple threshold checks to defeasible rule engine
-- Export schema version: `0.1.0` → `0.2.0`
+- Export schema version: `0.1.0` -> `0.2.0`
 
 ## [0.1.0] - 2026-02-05
 
@@ -71,7 +102,8 @@ Initial release. Layer 1: manual mode switching with research-informed presets.
 - Onboarding message for first-time users
 - 73 unit tests
 
-[Unreleased]: https://github.com/m3data/vibe-harness-mcp/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/m3data/vibe-harness-mcp/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/m3data/vibe-harness-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/m3data/vibe-harness-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/m3data/vibe-harness-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/m3data/vibe-harness-mcp/releases/tag/v0.1.0

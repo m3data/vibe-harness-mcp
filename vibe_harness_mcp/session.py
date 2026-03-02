@@ -7,15 +7,15 @@ from pathlib import Path
 from typing import Optional
 import uuid
 
-import config
-from modes import get_friction, get_friction_message, default_mode, validate_mode, get_mode
+from vibe_harness_mcp import config
+from vibe_harness_mcp.modes import get_friction, get_friction_message, default_mode, validate_mode, get_mode
 
 HISTORY_DIR = Path.home() / ".vibe-harness"
 HISTORY_FILE = HISTORY_DIR / "mode-history.jsonl"
 
 # Export schema version — tracks the JSON export format independently of the
 # package version. Bump when adding/removing/renaming fields in to_export_dict().
-EXPORT_SCHEMA_VERSION = "0.3.0"
+EXPORT_SCHEMA_VERSION = "0.4.0"
 
 
 @dataclass
