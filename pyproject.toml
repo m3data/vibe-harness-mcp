@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vibe-harness-mcp"
-version = "0.4.1"
+version = "0.5.0"
 description = "MCP server that tunes human-AI interaction rhythm based on working modes and biosignal data"
 requires-python = ">=3.10"
 license = {text = "Earthian Stewardship License (ESL-A) v0.1"}

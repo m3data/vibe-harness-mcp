@@ -11,6 +11,43 @@ it changes.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-25
+
+Session-start logging and test isolation. The harness now records the mode at
+session boot, so the statusline and Ghostty watcher reflect your starting mode
+immediately instead of waiting for the first transition. Lands a ~7-week
+cooling thread (see SPEC-001).
+
+### Added
+- **Session-start logging**: `VibeSession.__post_init__` writes a `session-start`
+  transition to `mode-history.jsonl` on construction, so external readers
+  (statusline, Ghostty watcher) reflect the current mode from session boot.
+  Closes the gap where a session that never switched mode logged no transitions.
+  File-only — it is not appended to the in-memory `transitions` list, so
+  time-in-mode summaries and the history formatter never treat `session-start`
+  as a mode. (`to_mode` carries the real starting mode; consumers read `to_mode`.)
+- **Injectable history path**: `config.history_dir()` / `config.history_file()`
+  resolve `VIBE_HARNESS_HISTORY_DIR` (env override > default `~/.vibe-harness`),
+  per call. Enables full test isolation from live session state.
+- `tests/conftest.py`: autouse fixture redirecting the history directory to a
+  per-test temp dir (plus an import-time override, since the server constructs
+  its session at module import). The suite no longer reads or writes the live
+  `~/.vibe-harness/mode-history.jsonl`.
+- Guard tests asserting `session-start` stays file-only, and a test for the
+  returning-user snapshot.
+
+### Changed
+- **Onboarding ceremony first-use detection** now uses a construction-time
+  `VibeSession._is_returning_user` snapshot instead of live `mode-history.jsonl`
+  existence. Required because session-start logging creates the file at boot —
+  the old file-existence gate would otherwise make every session look like a
+  returning user and suppress the ceremony for genuine first-time users.
+- Removed the module-level `HISTORY_DIR` / `HISTORY_FILE` constants from
+  `session.py` and `temporal.py` (which carried a duplicate copy); all paths
+  now resolve through `config`.
+- Ceremony integration tests drive the real `_is_returning_user` signal rather
+  than mocking the history file.
+
 ## [0.4.1] - 2026-03-03
 
 Active onboarding ceremony. First-time users get a two-phase welcome that

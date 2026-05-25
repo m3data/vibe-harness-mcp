@@ -1,9 +1,9 @@
 # Vibe Harness MCP
 
 ![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
-![Version](https://img.shields.io/badge/VERSION-0.4.1-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
+![Version](https://img.shields.io/badge/VERSION-0.5.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
-![Tests](https://img.shields.io/badge/TESTS-141_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
+![Tests](https://img.shields.io/badge/TESTS-166_passing-green?style=for-the-badge&labelColor=10b981&color=047857)
 ![MCP](https://img.shields.io/badge/MCP-stdio-purple?style=for-the-badge&labelColor=7c3aed&color=5b21b6)
 
 An MCP server that attunes human-AI interaction rhythm based on working modes.
