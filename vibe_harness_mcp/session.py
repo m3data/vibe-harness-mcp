@@ -3,15 +3,15 @@
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
 import uuid
 
 from vibe_harness_mcp import config
 from vibe_harness_mcp.modes import get_friction, get_friction_message, default_mode, validate_mode, get_mode
 
-HISTORY_DIR = Path.home() / ".vibe-harness"
-HISTORY_FILE = HISTORY_DIR / "mode-history.jsonl"
+# History path resolves through config.history_file() / config.history_dir()
+# (per-call, honours the VIBE_HARNESS_HISTORY_DIR override) so tests stay
+# isolated from live state. Do not reintroduce module-level path constants.
 
 # Export schema version — tracks the JSON export format independently of the
 # package version. Bump when adding/removing/renaming fields in to_export_dict().
@@ -84,6 +84,22 @@ class VibeSession:
     # Onboarding ceremony state:
     # 0 = not started (first-use user), 1 = phase 1 delivered, None = complete/not needed
     _ceremony_phase: Optional[int] = field(default=0, repr=False)
+
+    # Whether mode-history already existed when this session began. Snapshotted
+    # before the session-start write (which itself creates the file), so it
+    # remains a true first-use signal for the onboarding ceremony.
+    _is_returning_user: bool = field(default=False, repr=False)
+
+    def __post_init__(self) -> None:
+        """Log session-start to mode-history so external readers (statusline, Ghostty
+        watcher) immediately reflect the current mode.
+
+        Snapshot returning-user status *before* the write: the session-start
+        line creates the history file, so the ceremony can no longer infer
+        first-use from file existence after construction.
+        """
+        self._is_returning_user = config.history_file().exists()
+        self._log_transition("session-start", self.mode, "none", self.started_at)
 
     def ceremony_active(self) -> bool:
         """True if the onboarding ceremony is in progress (phase 0 or 1)."""
@@ -236,7 +252,7 @@ class VibeSession:
     def _log_transition(self, from_mode: str, to_mode: str, friction: str, timestamp: datetime) -> None:
         """Append transition to JSONL history file. Failures are silently swallowed."""
         try:
-            HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+            config.history_dir().mkdir(parents=True, exist_ok=True)
             entry = {
                 "timestamp": timestamp.isoformat(),
                 "session_id": self.session_id,
@@ -244,7 +260,7 @@ class VibeSession:
                 "to_mode": to_mode,
                 "friction": friction,
             }
-            with HISTORY_FILE.open("a") as f:
+            with config.history_file().open("a") as f:
                 f.write(json.dumps(entry) + "\n")
         except Exception:
             pass

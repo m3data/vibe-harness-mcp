@@ -6,8 +6,28 @@ File configs are loaded once at import time. Runtime overrides via vibe_configur
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Any
+
+
+def history_dir() -> Path:
+    """Resolve the mode-history directory.
+
+    Resolved per call so test isolation (and any runtime relocation) takes
+    effect regardless of import order. Precedence: VIBE_HARNESS_HISTORY_DIR
+    env override > default ~/.vibe-harness.
+    """
+    env = os.environ.get("VIBE_HARNESS_HISTORY_DIR")
+    if env:
+        return Path(env)
+    return Path.home() / ".vibe-harness"
+
+
+def history_file() -> Path:
+    """Resolve the mode-history JSONL path (honours the env override per call)."""
+    return history_dir() / "mode-history.jsonl"
+
 
 DEFAULTS = {
     "nudges.time_check_minutes": 45,

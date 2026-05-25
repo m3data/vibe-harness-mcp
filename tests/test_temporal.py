@@ -15,7 +15,6 @@ from vibe_harness_mcp.temporal import (
     _sessions_on_date,
     _sessions_in_week,
     get_temporal_context,
-    HISTORY_FILE,
 )
 
 

@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from vibe_harness_mcp import config
-from vibe_harness_mcp.session import VibeSession, ModeTransition, IdleGap, HISTORY_FILE, EXPORT_SCHEMA_VERSION
+from vibe_harness_mcp.session import VibeSession, ModeTransition, IdleGap, EXPORT_SCHEMA_VERSION
 
 
 class TestSessionInit:
@@ -22,6 +22,15 @@ class TestSessionInit:
         s2 = VibeSession()
         assert len(s1.session_id) == 12
         assert s1.session_id != s2.session_id
+
+    def test_is_returning_user_snapshot(self):
+        """First session with no history is first-use; the session-start write
+        creates the file, so the next session is correctly a returning user.
+        Snapshotted before the write so it stays a true first-use signal."""
+        s1 = VibeSession()
+        assert s1._is_returning_user is False  # empty history dir under isolation
+        s2 = VibeSession()
+        assert s2._is_returning_user is True  # s1's session-start created the file
 
 
 class TestInteractions:
@@ -247,21 +256,38 @@ class TestCeremonyState:
 
 
 class TestJSONLLogging:
+    def test_session_start_writes_jsonl(self):
+        if config.history_file().exists():
+            before = len(config.history_file().read_text().strip().split("\n"))
+        else:
+            before = 0
+
+        s = VibeSession()
+
+        lines = config.history_file().read_text().strip().split("\n")
+        new_lines = lines[before:]
+        assert len(new_lines) == 1
+
+        entry = json.loads(new_lines[0])
+        assert entry["from_mode"] == "session-start"
+        assert entry["to_mode"] == "explore"
+        assert entry["session_id"] == s.session_id
+
     def test_transition_writes_jsonl(self):
-        # Count existing lines
-        if HISTORY_FILE.exists():
-            before = len(HISTORY_FILE.read_text().strip().split("\n"))
+        if config.history_file().exists():
+            before = len(config.history_file().read_text().strip().split("\n"))
         else:
             before = 0
 
         s = VibeSession()
         s.set_mode("build")
 
-        lines = HISTORY_FILE.read_text().strip().split("\n")
+        lines = config.history_file().read_text().strip().split("\n")
         new_lines = lines[before:]
-        assert len(new_lines) == 1
+        # session-start + explore→build
+        assert len(new_lines) == 2
 
-        entry = json.loads(new_lines[0])
+        entry = json.loads(new_lines[1])
         assert entry["from_mode"] == "explore"
         assert entry["to_mode"] == "build"
         assert entry["session_id"] == s.session_id
@@ -269,25 +295,43 @@ class TestJSONLLogging:
         assert "friction" in entry
 
     def test_high_friction_logs_only_on_confirm(self):
-        if HISTORY_FILE.exists():
-            before = len(HISTORY_FILE.read_text().strip().split("\n"))
+        s = VibeSession()
+
+        # Baseline after session-start line
+        if config.history_file().exists():
+            before = len(config.history_file().read_text().strip().split("\n"))
         else:
             before = 0
 
-        s = VibeSession()
         s.set_mode("ship")  # pending — no log yet
 
-        if HISTORY_FILE.exists():
-            after_pending = len(HISTORY_FILE.read_text().strip().split("\n"))
+        if config.history_file().exists():
+            after_pending = len(config.history_file().read_text().strip().split("\n"))
         else:
             after_pending = 0
         assert after_pending == before  # no new line
 
         s.set_mode("ship")  # confirm — logs now
 
-        lines = HISTORY_FILE.read_text().strip().split("\n")
+        lines = config.history_file().read_text().strip().split("\n")
         after_confirm = len(lines)
         assert after_confirm == before + 1
+
+    def test_session_start_does_not_pollute_in_memory_transitions(self):
+        """Guard: session-start is file-only — it must not enter self.transitions,
+        so spans/time-in-mode and the history formatter never see it as a mode."""
+        s = VibeSession()
+        # Nothing in the in-memory list yet — session-start went to the file only.
+        assert s.transitions == []
+        summary = s.time_in_mode_summary()
+        assert "session-start" not in summary
+        assert summary == {"explore": summary["explore"]}
+
+        s.set_mode("build")
+        # The opening span is attributed to the real starting mode, not session-start.
+        summary = s.time_in_mode_summary()
+        assert "session-start" not in summary
+        assert set(summary.keys()) == {"explore", "build"}
 
 
 class TestIdleGapDetection:

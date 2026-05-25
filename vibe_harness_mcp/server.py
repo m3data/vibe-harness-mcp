@@ -18,7 +18,6 @@ from vibe_harness_mcp.session import VibeSession
 from vibe_harness_mcp.modes import valid_modes, get_mode
 from vibe_harness_mcp.formatters import format_mode_switch, format_vibe_check, format_status_line, format_history, format_nudge_output, format_ceremony_phase1, format_ceremony_phase2
 from vibe_harness_mcp.governor import evaluate_rules
-from vibe_harness_mcp.session import HISTORY_FILE
 from vibe_harness_mcp.temporal import get_temporal_context
 from vibe_harness_mcp import config
 
@@ -34,8 +33,10 @@ EXPORT_DIR = Path.home() / ".vibe-harness" / "sessions"
 def _check_ceremony() -> str | None:
     """Check and advance the onboarding ceremony. Returns text to show instead
     of normal tool output, or None if ceremony is complete/not needed."""
-    # Returning user — history file exists, skip ceremony entirely
-    if HISTORY_FILE.exists():
+    # Returning user — history existed before this session began, skip ceremony.
+    # (Snapshotted at construction: the session-start write creates the file,
+    # so live file existence is no longer a valid first-use signal.)
+    if _session._is_returning_user:
         _session._ceremony_phase = None
         return None
 

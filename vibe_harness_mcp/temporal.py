@@ -12,13 +12,12 @@ All analysis is read-only against the existing JSONL file.
 import json
 from collections import Counter
 from datetime import datetime, date, timedelta, timezone
-from pathlib import Path
 from typing import Optional
 
 from vibe_harness_mcp import config
 
-HISTORY_DIR = Path.home() / ".vibe-harness"
-HISTORY_FILE = HISTORY_DIR / "mode-history.jsonl"
+# History path resolves through config.history_file() (per-call, honours the
+# VIBE_HARNESS_HISTORY_DIR override) — no module-level path constant here.
 
 # Period definitions (local time hours)
 _PERIODS = [
@@ -55,10 +54,11 @@ def _is_late_hour(hour: int) -> bool:
 def _load_history() -> list[dict]:
     """Load all entries from mode-history.jsonl. Returns empty list on error."""
     try:
-        if not HISTORY_FILE.exists():
+        history_file = config.history_file()
+        if not history_file.exists():
             return []
         entries = []
-        for line in HISTORY_FILE.read_text().splitlines():
+        for line in history_file.read_text().splitlines():
             line = line.strip()
             if not line:
                 continue

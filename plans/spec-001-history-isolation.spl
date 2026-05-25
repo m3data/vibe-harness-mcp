@@ -1,0 +1,109 @@
+;; ─────────────────────────────────────────────────────────────────────────
+;; Vibe Harness — SPEC-001: History Path Isolation + Session-Start Logging
+;;
+;; Spawn-ready build plan for the disentanglement work scoped in
+;; specs/SPEC-001-history-path-isolation-and-session-start-logging.md.
+;;
+;; Origin: 2026-05-25 think-with. The session-start logging (session.py +
+;; test_session.py) sat uncommitted in the tree for ~7 weeks; committing it
+;; naively would ship two latent bugs (span attribution to a "session-start"
+;; pseudo-mode; literal formatter rendering) AND deepen a test-isolation
+;; problem (tests write to the live ~/.vibe-harness/mode-history.jsonl).
+;; Tests-first. Isolation must land before any test writes anywhere.
+;; ─────────────────────────────────────────────────────────────────────────
+
+(meta plan
+  (id "VH-SPEC-001")
+  (title "History Path Isolation + Session-Start Logging")
+  (version "0.1.0")
+  (status "active")
+  (created "2026-05-25")
+  (author "dyad:mat+kairos")
+  (spec "specs/SPEC-001-history-path-isolation-and-session-start-logging.md")
+  (description "Make HISTORY_FILE injectable so tests run isolated from live state; then land the stranded session-start logging + tests, with span/formatter landmines fixed, as one commit."))
+
+;; ── Agent ───────────────────────────────────────────────────────────────────
+(given agent-builder-available)
+
+;; ── Tasks ─────────────────────────────────────────────────────────────────
+(given task-isolation-fixture)
+(given task-failing-tests)
+(given task-impl-and-fixes)
+(given task-external-consumer-verify)
+(given task-commit)
+
+;; isolation-fixture is the leaf — nothing precedes it, and nothing else may
+;; run until it lands (every test instantiating a session writes to history).
+(given no-deps-isolation-fixture)
+
+(meta task-isolation-fixture
+  (description "Resolve the history dir through an env override (VIBE_HARNESS_HISTORY_DIR, precedence env > ~/.vibe-harness) via the config module; prefer a per-call resolver over a bare module constant to avoid import-order traps. Audit all HISTORY_FILE/HISTORY_DIR importers first. Add tests/conftest.py with an autouse fixture pointing the history dir at tmp_path for the whole suite.")
+  (acceptance "Existing suite green against the isolated path; a full pytest run leaves ~/.vibe-harness/mode-history.jsonl line count unchanged (isolation proof)."))
+
+(meta task-failing-tests
+  (description "Write failing tests (tests-first): (1) constructing VibeSession() logs exactly one session-start line; (2) time-in-mode/spans attribute the opening span to the real starting mode, NOT the 'session-start' pseudo-mode; (3) formatter renders the session-start row per the chosen display decision, not literal 'session-start > explore'.")
+  (acceptance "Three tests exist and fail for the right reason against the isolated path."))
+
+(meta task-impl-and-fixes
+  (description "Implement: env-resolved path wiring; the __post_init__ session-start logging (already drafted in the dirty tree); the span fix (use the session-start entry's to_mode as the opening span's mode, or skip session-start in span computation); the formatter display decision; and the sentinel audit (validate_mode + any mode aggregation must not treat 'session-start' as a real mode).")
+  (acceptance "The three SPEC tests green; full pytest suite green."))
+
+(meta task-external-consumer-verify
+  (description "Grep for and verify external consumers of mode-history (statusline, Ghostty watcher — likely in EarthianLabs/.claude/, outside this repo) tolerate a from_mode of 'session-start' without rendering it as a real mode. Patch if in reach; otherwise record as residue.")
+  (acceptance "Consumers confirmed safe, or a patch made, or residue noted in the commit/trace."))
+
+(meta task-commit
+  (description "Commit session.py + test_session.py + new conftest.py + any formatter edit + the spec as one coherent change. Document the isolation proof in the commit body.")
+  (acceptance "One commit on main; tree clean except anything deliberately deferred; isolation proof noted."))
+
+;; ── Readiness rules ─────────────────────────────────────────────────────────
+(normally r-ready-isolation
+  (and task-isolation-fixture no-deps-isolation-fixture)
+  ready-isolation-fixture)
+
+(normally r-ready-tests
+  (and task-failing-tests completed-isolation-fixture)
+  ready-failing-tests)
+
+(normally r-ready-impl
+  (and task-impl-and-fixes completed-failing-tests)
+  ready-impl-and-fixes)
+
+(normally r-ready-verify
+  (and task-external-consumer-verify completed-impl-and-fixes)
+  ready-external-consumer-verify)
+
+(normally r-ready-commit
+  (and task-commit completed-impl-and-fixes completed-external-consumer-verify)
+  ready-commit)
+
+;; ── Assignment (advisory) ────────────────────────────────────────────────────
+(normally r-assign-isolation (and ready-isolation-fixture agent-builder-available) assign-to-isolation-fixture-builder)
+(normally r-assign-tests     (and ready-failing-tests agent-builder-available)     assign-to-failing-tests-builder)
+(normally r-assign-impl      (and ready-impl-and-fixes agent-builder-available)    assign-to-impl-and-fixes-builder)
+(normally r-assign-verify    (and ready-external-consumer-verify agent-builder-available) assign-to-external-consumer-verify-builder)
+(normally r-assign-commit    (and ready-commit agent-builder-available)            assign-to-commit-builder)
+
+(meta r-ready-isolation
+  (description "Isolation is the gating leaf — it must complete before any other task, because every test that constructs a session writes to the history file, and session-start logging makes that worse.")
+  (justification "SPEC-001: cannot run the suite to verify the feature without first isolating the path from live state."))
+
+(claims agent:kairos
+  :at "2026-05-25T06:00:53Z"
+  (given completed-isolation-fixture))
+
+(claims agent:kairos
+  :at "2026-05-25T06:00:53Z"
+  (given completed-failing-tests))
+
+(claims agent:kairos
+  :at "2026-05-25T06:00:53Z"
+  (given completed-impl-and-fixes))
+
+(claims agent:kairos
+  :at "2026-05-25T06:00:53Z"
+  (given completed-external-consumer-verify))
+
+(claims agent:kairos
+  :at "2026-05-25T06:00:53Z"
+  (given completed-commit))
