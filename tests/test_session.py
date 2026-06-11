@@ -493,6 +493,50 @@ class TestActiveDurations:
         assert s.active_mode_minutes() >= 0
 
 
+class TestContinuousActiveMinutes:
+    """continuous_active_minutes() = the current unbroken stretch; a real break resets it."""
+
+    def test_no_gaps_equals_session_duration(self):
+        s = VibeSession()
+        s.started_at = datetime.now(timezone.utc) - timedelta(minutes=90)
+        # No breaks → the whole session is one unbroken stretch.
+        assert abs(s.continuous_active_minutes() - 90) < 1
+
+    def test_resets_after_a_break(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=5)
+        # A 40-min break that ended 20 min ago.
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(minutes=60),
+            end=now - timedelta(minutes=20),
+        ))
+        # The stretch is 20 min (since the break ended), not the 5h cumulative.
+        assert abs(s.continuous_active_minutes() - 20) < 1
+        # And it is strictly less than cumulative active time.
+        assert s.continuous_active_minutes() < s.active_session_minutes()
+
+    def test_uses_most_recent_break(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=8)
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=6), end=now - timedelta(hours=5),
+        ))
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(hours=3), end=now - timedelta(minutes=45),
+        ))
+        # Most recent break ended 45 min ago — that anchors the stretch.
+        assert abs(s.continuous_active_minutes() - 45) < 1
+
+    def test_never_negative(self):
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(minutes=10)
+        s._idle_gaps.append(IdleGap(start=now - timedelta(minutes=5), end=now))
+        assert s.continuous_active_minutes() >= 0
+
+
 class TestTimeInModeSummaryWithIdleGaps:
     def test_single_mode_subtracts_idle(self):
         s = VibeSession()

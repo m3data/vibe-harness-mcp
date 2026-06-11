@@ -12,7 +12,7 @@ why a nudge did or didn't appear.
 
 Rule priority (highest first):
 1. Cooldown suppression — one nudge per cooldown window
-2. Session duration — full session too long
+2. Session duration — current unbroken stretch too long (a break resets it)
 3. Mode duration — stuck in one mode
 4. Mode drift — behaviour doesn't match declared mode
 5. Interaction count — high activity without mode reflection
@@ -81,6 +81,7 @@ def _build_session_state(session) -> dict:
         "mode": session.mode,
         "mode_minutes": session.active_mode_minutes(),
         "session_minutes": session.active_session_minutes(),
+        "continuous_minutes": session.continuous_active_minutes(),
         "interactions": session.interaction_count,
         "switches": len(session.transitions),
         "last_nudge_at": session.last_nudge_at,
@@ -108,7 +109,9 @@ def _cooldown_active(state: dict) -> bool:
 
 
 def _session_too_long(state: dict) -> bool:
-    return state["session_minutes"] >= state["session_max_minutes"]
+    # Fire on the current unbroken stretch, not cumulative active time. A long
+    # day with real breaks should not nag; a long continuous push should.
+    return state["continuous_minutes"] >= state["session_max_minutes"]
 
 
 def _mode_too_long(state: dict) -> bool:
@@ -170,8 +173,8 @@ def _cooldown_msg(state: dict) -> str:
 
 def _session_too_long_msg(state: dict) -> str:
     return (
-        f"It's been {round(state['session_minutes'])} minutes. "
-        "How does your body feel? This might be a good time to step away."
+        f"You've been going {round(state['continuous_minutes'])} minutes without a real break. "
+        "How does your body feel? This might be a good time to step away and move."
     )
 
 

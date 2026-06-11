@@ -331,6 +331,38 @@ class TestActiveDurationsInGovernor:
         assert nudge is not None
         assert "step away" in nudge
 
+    def test_session_nudge_uses_continuous_stretch_not_cumulative(self):
+        """High cumulative active time but a recent break → no 'step away' nudge.
+
+        This is the real-world case: a long working day with genuine breaks
+        should not nag. The trigger is the unbroken stretch, not total active
+        time accumulated across the whole session.
+        """
+        s = VibeSession()
+        now = datetime.now(timezone.utc)
+        s.started_at = now - timedelta(hours=6)
+        s.mode_since = now - timedelta(minutes=10)
+        # A 35-min break that ended 10 min ago resets the stretch.
+        s._idle_gaps.append(IdleGap(
+            start=now - timedelta(minutes=45),
+            end=now - timedelta(minutes=10),
+        ))
+        # Cumulative active ~5h25m (well over 120), continuous ~10min (well under).
+        assert s.active_session_minutes() > 120
+        assert s.continuous_active_minutes() < 120
+        _, evals = evaluate_rules(s)
+        fired = {e.rule_name for e in evals if e.fired and not e.defeated}
+        assert "session_duration" not in fired
+
+    def test_session_nudge_fires_on_long_continuous_stretch(self):
+        """A long unbroken stretch fires the step-away nudge even mid-day."""
+        s = VibeSession()
+        s.started_at = datetime.now(timezone.utc) - timedelta(minutes=130)
+        s.mode_since = datetime.now(timezone.utc) - timedelta(minutes=130)
+        _, evals = evaluate_rules(s)
+        fired = {e.rule_name for e in evals if e.fired and not e.defeated}
+        assert "session_duration" in fired
+
     def test_mode_duration_uses_active_time(self):
         """Mode duration nudge should not fire if most of mode time was idle."""
         s = VibeSession()

@@ -30,6 +30,7 @@ def format_vibe_check(session, *, nudge: Optional[str] = None, temporal: Optiona
 
     mode_min = round(session.active_mode_minutes())
     session_min = round(session.active_session_minutes())
+    stretch_min = round(session.continuous_active_minutes())
     idle_min = round(session.total_idle_minutes())
 
     lines = [
@@ -38,7 +39,8 @@ def format_vibe_check(session, *, nudge: Optional[str] = None, temporal: Optiona
         mode_def["orientation"],
         "",
         f"  mode      {mode_min}min",
-        f"  session   {session_min}min",
+        f"  session   {session_min}min active",
+        f"  stretch   {stretch_min}min unbroken",
         f"  actions   {session.interaction_count}",
         f"  switches  {len(session.transitions)}",
     ]

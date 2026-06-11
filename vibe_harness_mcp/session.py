@@ -305,6 +305,26 @@ class VibeSession:
         """Total idle time detected across the session."""
         return self._total_idle_seconds(self.started_at) / 60
 
+    def continuous_active_minutes(self) -> float:
+        """Minutes in the current unbroken work stretch.
+
+        Time since the end of the most recent idle gap (a real break resets
+        the stretch), or since the session started if no break has occurred.
+
+        This differs from active_session_minutes(), which is *cumulative*
+        active time across the whole session. Use this for "step away" /
+        cool-off signals: a break should reset the stretch, not merely be
+        subtracted from a running total that keeps climbing across a long
+        working day. A session open for hours but punctuated by real breaks
+        has a short continuous stretch and should not be nudged to rest.
+        """
+        stretch_start = self.started_at
+        for gap in self._idle_gaps:
+            if gap.end > stretch_start:
+                stretch_start = gap.end
+        delta = datetime.now(timezone.utc) - stretch_start
+        return max(0.0, delta.total_seconds() / 60)
+
     def interactions_since_last_switch(self) -> int:
         """Interactions since last mode transition."""
         return self.interaction_count - self._interactions_at_last_switch
